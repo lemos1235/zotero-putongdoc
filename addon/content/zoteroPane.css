@@ -1,0 +1,8 @@
+/* Size the toolbar image independently of menu and preferences icons. */
+#zotero-tb-imt .toolbarbutton-icon {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  object-fit: contain;
+}

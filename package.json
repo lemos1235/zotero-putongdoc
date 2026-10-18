@@ -2,7 +2,7 @@
   "name": "zotero-putongdoc",
   "type": "module",
   "version": "0.1.0-alpha.0",
-  "description": "PutongDoc PDF translation plugin for Zotero (API integration pending).",
+  "description": "PutongDoc PDF translation plugin for Zotero.",
   "keywords": [
     "zotero",
     "putongdoc",
@@ -30,6 +30,7 @@
   "license": "AGPL-3.0-or-later",
   "scripts": {
     "start": "zotero-plugin serve",
+    "test": "node --test tests/*.test.mjs",
     "build": "zotero-plugin build && tsc --noEmit",
     "build:dev": "zotero-plugin build --dev && tsc --noEmit",
     "format": "prettier --write .",

@@ -1,196 +1,75 @@
 <linkset>
   <html:link rel="localization" href="__addonRef__-preferences.ftl" />
 </linkset>
-<vbox onload="Zotero.__addonInstance__.hooks.onPrefsEvent('load', { window })">
-  <groupbox>
-    <label><html:h2 data-l10n-id="pref-title"></html:h2></label>
+<vbox
+  style="padding: 8px 4px; max-width: 640px"
+  onload="Zotero.__addonInstance__.hooks.onPrefsEvent('load', { window })">
+  <groupbox style="margin: 0 0 16px">
+    <label>
+      <html:h2 style="margin: 0 0 10px; font-size: 16px" data-l10n-id="pref-title"></html:h2>
+    </label>
     <hbox align="center">
       <html:label
         for="zotero-prefpane-__addonRef__-authkey"
+        style="min-width: 72px"
         data-l10n-id="pref-authkey"></html:label>
       <html:input
         type="password"
-        id="zotero-prefpane-__addonRef__-authkey"
-        preference="authkey"></html:input>
+        autocomplete="off"
+        placeholder="pt_..."
+        style="width: 220px; min-width: 160px; flex: 1"
+        id="zotero-prefpane-__addonRef__-authkey"></html:input>
       <button
         id="zotero-prefpane-__addonRef__-test-button"
+        style="width: 72px; min-width: 72px; margin-inline-start: 8px; margin-inline-end: 0"
         data-l10n-id="pref-test-button"></button>
+      <button
+        id="putongdoc-token-remove"
+        style="width: 72px; min-width: 72px; margin-inline-start: 8px; margin-inline-end: 0"
+        data-l10n-id="pref-token-remove"></button>
     </hbox>
-    <description data-l10n-id="pref-service-pending"></description>
+    <hbox align="center" style="margin-top: 6px">
+      <description
+        id="putongdoc-token-feedback"
+        flex="1"
+        style="margin: 0"
+        data-l10n-id="pref-token-help"></description>
+      <label
+        is="zotero-text-link"
+        class="zotero-text-link"
+        href="https://putongdoc.com/tokens"
+        data-l10n-id="pref-token-create"></label>
+    </hbox>
   </groupbox>
-  <groupbox>
-    <label><html:h2 data-l10n-id="pref-translate-settings"></html:h2></label>
-    <hbox align="center">
-      <label data-l10n-id="pref-target-language"></label>
-      <!-- Replace -->
+  <groupbox style="margin: 0">
+    <label>
+      <html:h2
+        style="margin: 0 0 10px; font-size: 16px"
+        data-l10n-id="pref-translate-settings"></html:h2>
+    </label>
+    <hbox align="center" style="margin-bottom: 8px">
+      <label style="width: 160px; margin: 0" data-l10n-id="pref-target-language"></label>
       <box id="__addonRef__-target-language-placeholder"></box>
     </hbox>
-    <hbox align="center">
-      <label data-l10n-id="pref-translate-model"></label>
-      <!-- Replace -->
-      <box id="__addonRef__-translate-model-placeholder"></box>
-    </hbox>
-    <hbox align="center">
-      <label data-l10n-id="pref-translate-mode"></label>
-      <!-- Replace -->
+    <hbox align="center" style="margin-bottom: 8px">
+      <label style="width: 160px; margin: 0" data-l10n-id="pref-translate-mode"></label>
       <box id="__addonRef__-translate-mode-placeholder"></box>
     </hbox>
-    <vbox style="margin-top: 12px">
-      <checkbox
-        id="zotero-prefpane-__addonRef__-enable-auto-open-pdf"
-        native="true"
-        preference="autoOpenPDF"
-        data-l10n-id="pref-enable-autoOpenPDF" />
-    </vbox>
-  </groupbox>
-
-  <groupbox>
-    <label><html:h2 data-l10n-id="pref-translate-settings-advance"></html:h2></label>
-
-    <vbox style="margin-top: 12px">
-      <checkbox
-        id="zotero-prefpane-__addonRef__-enable-autoExtractGlossary"
-        native="true"
-        preference="autoExtractGlossary"
-        data-l10n-id="pref-enable-autoExtractGlossary" />
-      <p data-l10n-id="pref-enable-autoExtractGlossary-description" />
-    </vbox>
-
-    <vbox style="margin-top: 12px">
-      <html:label
-        for="zotero-prefpane-__addonRef__-customSystemPrompt"
-        data-l10n-id="pref-customSystemPrompt"></html:label>
-      <html:textarea
-        id="zotero-prefpane-__addonRef__-customSystemPrompt"
-        preference="customSystemPrompt"
-        placeholder="You are a professional and reliable machine translation engine.
-        When translating, strictly follow the instructions below to ensure translation quality and preserve all formatting, tags, and placeholders:"
-        rows="10"
-        cols="50"></html:textarea>
-    </vbox>
-
-    <vbox style="margin-top: 12px">
-      <checkbox
-        id="zotero-prefpane-__addonRef__-enable-richtext"
-        native="true"
-        preference="richTextTranslate"
-        data-l10n-id="pref-enable-richTextTranslate" />
-    </vbox>
-
-    <vbox style="margin-top: 12px">
-      <checkbox
-        id="zotero-prefpane-__addonRef__-enable-compatibility"
-        native="true"
-        preference="enhanceCompatibility"
-        data-l10n-id="pref-enable-compatibility" />
-      <p data-l10n-id="pref-enable-compatibility-description" />
-    </vbox>
-
-    <vbox style="margin-top: 12px">
-      <hbox align="center">
-        <label data-l10n-id="pref-enable-ocr-workaround"></label>
-        <!-- Replace -->
-        <box id="__addonRef__-enable-ocr-workaround-placeholder"></box>
-      </hbox>
-      <p data-l10n-id="pref-enable-ocr-workaround-description" />
-    </vbox>
-
-    <hbox align="center" style="margin-top: 12px">
-      <label data-l10n-id="pref-font-family"></label>
-      <!-- Replace -->
-      <box id="__addonRef__-font-family-placeholder"></box>
+    <hbox align="center" style="margin-bottom: 8px">
+      <label style="width: 160px; margin: 0" data-l10n-id="pref-extract-backend"></label>
+      <box id="__addonRef__-extract-backend-placeholder"></box>
     </hbox>
-
-    <hbox align="center" style="margin-top: 12px">
-      <label data-l10n-id="pref-dual-mode"></label>
-      <!-- Replace -->
-      <box id="__addonRef__-dual-mode-placeholder"></box>
-    </hbox>
-
-    <hbox align="center" style="margin-top: 12px">
-      <label data-l10n-id="pref-layout-model"></label>
-      <!-- Replace -->
-      <box id="__addonRef__-layout-model-placeholder"></box>
-    </hbox>
-
-    <vbox style="margin-top: 12px">
-      <checkbox
-        id="zotero-prefpane-__addonRef__-enable-autoTranslate"
-        native="true"
-        preference="autoTranslate"
-        data-l10n-id="pref-enable-autoTranslate" />
-    </vbox>
-    <vbox>
-      <p data-l10n-id="pref-enable-autoTranslate-description" />
-    </vbox>
+    <checkbox native="true" preference="autoOpenPDF" data-l10n-id="pref-enable-autoOpenPDF" />
   </groupbox>
-
-  <groupbox>
-    <label><html:h2 data-l10n-id="pref-shortcuts-settings"></html:h2></label>
-    <vbox>
-      <checkbox
-        id="zotero-prefpane-__addonRef__-enable-shortcuts"
-        native="true"
-        preference="enableShortcuts"
-        data-l10n-id="pref-enable-shortcuts" />
-    </vbox>
-    <vbox>
-      <p data-l10n-id="pref-shortcuts-description" />
-    </vbox>
-    <vbox style="margin-top: 8px">
-      <html:label
-        for="zotero-prefpane-__addonRef__-shortcut-translate"
-        data-l10n-id="pref-shortcut-translate"></html:label>
-      <hbox align="center">
-        <html:input
-          id="zotero-prefpane-__addonRef__-shortcut-translate"
-          type="text"
-          preference="shortcutTranslate"
-          style="width: 160px; margin-right: 6px"></html:input>
-        <button
-          id="zotero-prefpane-__addonRef__-shortcut-translate-reset"
-          data-l10n-id="pref-shortcut-reset"></button>
-      </hbox>
-    </vbox>
-    <vbox style="margin-top: 8px">
-      <html:label
-        for="zotero-prefpane-__addonRef__-shortcut-task-manager"
-        data-l10n-id="pref-shortcut-task-manager"></html:label>
-      <hbox align="center">
-        <html:input
-          id="zotero-prefpane-__addonRef__-shortcut-task-manager"
-          type="text"
-          preference="shortcutTaskManager"
-          style="width: 160px; margin-right: 6px"></html:input>
-        <button
-          id="zotero-prefpane-__addonRef__-shortcut-task-manager-reset"
-          data-l10n-id="pref-shortcut-reset"></button>
-      </hbox>
-    </vbox>
-    <vbox>
-      <p
-        id="zotero-prefpane-__addonRef__-shortcut-feedback"
-        data-l10n-id="pref-shortcut-conflict-guidance" />
-    </vbox>
-  </groupbox>
-
-  <groupbox>
-    <label><html:h2 data-l10n-id="pref-about"></html:h2></label>
+  <hbox align="center" style="margin-top: 16px">
     <label
       data-l10n-id="pref-about-version"
-      data-l10n-args='{"time": "__buildTime__","name": "__addonName__","version":"__buildVersion__"}'></label>
-    <hbox align="center">
-      <label
-        data-l10n-id="pref-about-feedback"
-        is="zotero-text-link"
-        class="zotero-text-link"
-        href="https://github.com/lemos1235/zotero-putongdoc/issues"
-        style="margin-right: 4px"></label>
-      <label
-        data-l10n-id="pref-about-docs"
-        is="zotero-text-link"
-        class="zotero-text-link"
-        href="https://github.com/lemos1235/zotero-putongdoc#readme"></label>
-    </hbox>
-  </groupbox>
+      data-l10n-args='{"time": "__buildTime__","version":"__buildVersion__"}'></label>
+    <spacer flex="1" />
+    <label
+      data-l10n-id="pref-about-feedback"
+      is="zotero-text-link"
+      class="zotero-text-link"
+      href="https://github.com/lemos1235/zotero-putongdoc/issues"></label>
+  </hbox>
 </vbox>

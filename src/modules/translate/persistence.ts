@@ -1,5 +1,6 @@
 import { setTask, clearTasks, getTaskKeys, getTaskText } from './store';
 import type { TranslationTaskData } from '../../types';
+import { getString } from '../../utils/locale';
 
 /**
  * 加载已保存的翻译任务数据
@@ -73,7 +74,7 @@ export function restoreUnfinishedTasks(): number {
     // 找出状态不是success或failed的任务
     const unfinishedTasks = addon.data.task.translationTaskList.filter((task: any) => {
       const status = task.status || '';
-      return status !== 'success' && status !== 'failed' && status !== 'canceled';
+      return !['success', 'failed', 'canceled', 'paused', 'uncertain'].includes(status);
     });
 
     if (unfinishedTasks.length === 0) {
@@ -102,6 +103,9 @@ export function restoreUnfinishedTasks(): number {
         if (isInQueue) {
           ztoolkit.log('任务已存在于队列中，跳过恢复');
           continue;
+        } else if (task.submissionPending && !task.pdfId) {
+          task.status = 'uncertain';
+          task.error = getString('api-submission-uncertain');
         } else {
           addon.data.task.translationGlobalQueue.push(task);
           numRestored++;
@@ -110,11 +114,23 @@ export function restoreUnfinishedTasks(): number {
         ztoolkit.log(`检查附件ID ${attachmentId} 是否存在时出错，跳过恢复`, error);
       }
     }
+    saveTranslationData();
     ztoolkit.log(`已恢复${numRestored}个未完成任务`);
     return numRestored;
   } catch (error) {
     ztoolkit.log('恢复未完成任务时出错', error);
     return 0;
+  }
+}
+
+/** A synchronous disk barrier for non-idempotent submission state. Errors must propagate. */
+export function persistSubmissionState(task: TranslationTaskData): void {
+  try {
+    setTask(task);
+    // Gecko's blocking save flushes the profile prefs before the POST may start.
+    Services.prefs.savePrefFile(null as unknown as nsIFile);
+  } catch {
+    throw new Error(getString('api-persistence-failed'));
   }
 }
 
@@ -127,10 +143,7 @@ export function saveTranslationData() {
     // 保存翻译任务列表
     if (addon.data.task.translationTaskList && addon.data.task.translationTaskList.length > 0) {
       addon.data.task.translationTaskList
-        .filter(
-          (task: any) =>
-            task.status !== 'success' && task.status !== 'failed' && task.status !== 'canceled',
-        )
+        .filter((task: any) => task.status !== 'success' && task.status !== 'canceled')
         .forEach((task: TranslationTaskData) => setTask(task));
     }
   } catch (error) {

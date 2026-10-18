@@ -1,3 +1,2 @@
-import { langMap } from './config';
-
-export type Language = keyof typeof langMap;
+// Target-language codes come from the built-in list and are case-sensitive.
+export type Language = string;

@@ -1,230 +1,153 @@
-import { TranslationTaskData } from '../../types';
+import type { TranslationTaskData } from '../../types';
+import type { Task } from '../../api';
+import { formatErrorDiagnostic, retryDelay } from '../../api/request';
 import { getPref } from '../../utils/prefs';
 import { updateTaskInList } from './task-manager';
 import { getString } from '../../utils/locale';
+import { getLanguageName } from '../language';
 
 const ATTR_TAG = 'PutongDoc_translated';
+const MAX_WAIT = 30 * 60 * 1000;
 
-// Add a task monitor singleton to track all translation tasks
+type MonitoredTask = {
+  taskData: TranslationTaskData;
+  parentItem?: Zotero.Item;
+  startedAt: number;
+  failures: number;
+  nextPoll: number;
+};
+
 export const TranslationTaskMonitor = {
-  activeTasks: new Map<
-    string,
-    {
-      taskData: TranslationTaskData;
-      parentItem?: Zotero.Item;
-    }
-  >(),
-  pollingInterval: 3000,
+  activeTasks: new Map<string, MonitoredTask>(),
+  pollingInterval: 5000,
   isPolling: false,
+  nextReadAt: 0,
 
-  // Add a task to the monitor
   addTask(pdfId: string, taskData: TranslationTaskData, parentItem?: Zotero.Item) {
-    this.activeTasks.set(pdfId, { taskData, parentItem });
-
-    // Start polling if not already running
-    if (!this.isPolling) {
-      this.startPolling();
-    }
-
-    ztoolkit.log(`Added task to monitor: ${pdfId} (${taskData.attachmentFilename})`);
+    if (this.activeTasks.has(pdfId)) return;
+    this.activeTasks.set(pdfId, {
+      taskData,
+      parentItem,
+      startedAt: Date.now(),
+      failures: 0,
+      nextPoll: 0,
+    });
+    void this.startPolling();
   },
 
-  // Start the central polling process
   async startPolling() {
     if (this.isPolling) return;
-
     this.isPolling = true;
-    ztoolkit.log(
-      `Starting centralized translation task monitor with ${this.activeTasks.size} tasks`,
-    );
-
-    // Maximum number of concurrent requests to prevent overloading
-    const MAX_CONCURRENT_REQUESTS = 6;
-
-    while (this.activeTasks.size > 0) {
-      // Get all current tasks
-      const taskEntries = Array.from(this.activeTasks.entries());
-      // Process tasks in batches
-      for (let i = 0; i < taskEntries.length; i += MAX_CONCURRENT_REQUESTS) {
-        const batch = taskEntries.slice(i, i + MAX_CONCURRENT_REQUESTS);
-        const batchPromises = batch.map(([pdfId, { taskData, parentItem }]) =>
-          this.checkTaskProgress(pdfId, taskData, parentItem),
-        );
-
-        // Wait for the current batch to complete before processing the next batch
-        await Promise.all(batchPromises);
+    try {
+      while (addon.data.alive && this.activeTasks.size) {
+        // Serialize reads across tasks to share the account's request budget.
+        for (const [pdfId, entry] of this.activeTasks) {
+          if (!addon.data.alive) break;
+          if (Date.now() - entry.startedAt >= MAX_WAIT) {
+            this.pause(pdfId, entry, getString('api-wait-timeout'));
+            continue;
+          }
+          if (Date.now() < Math.max(entry.nextPoll, this.nextReadAt)) continue;
+          await this.checkTaskProgress(pdfId, entry);
+          await Zotero.Promise.delay(1000);
+        }
+        if (this.activeTasks.size) await Zotero.Promise.delay(1000);
       }
-
-      // Wait before the next polling cycle
-      await Zotero.Promise.delay(this.pollingInterval);
+    } finally {
+      this.isPolling = false;
     }
-
-    this.isPolling = false;
-    ztoolkit.log('All translation tasks completed, stopping monitor');
   },
 
-  // Check progress for a single task
-  async checkTaskProgress(pdfId: string, taskData: TranslationTaskData, parentItem?: Zotero.Item) {
+  pause(pdfId: string, entry: MonitoredTask, message: string) {
+    updateTaskInList(entry.taskData.attachmentId, { status: 'paused', error: message });
+    this.activeTasks.delete(pdfId);
+  },
+
+  async checkTaskProgress(pdfId: string, entry: MonitoredTask) {
+    const { taskData, parentItem } = entry;
     try {
-      const processStatus = await addon.api.getTranslateStatus({ pdfId });
-      const attachmentId = taskData.attachmentId;
-      const attachmentFilename = taskData.attachmentFilename;
-
-      ztoolkit.log(`Polling: Status for ${pdfId} (${attachmentFilename}):`, processStatus);
-
-      // Update status and stage on parent item
-      const currentStage = `${processStatus.currentStageName || 'queued'}`;
-
-      updateTaskInList(attachmentId, {
+      const task = await addon.api.getTranslateStatus({ pdfId });
+      if (!addon.data.alive || !this.activeTasks.has(pdfId)) return;
+      updateTaskInList(taskData.attachmentId, {
         status: 'translating',
-        stage: currentStage,
-        progress: processStatus.overall_progress || 0,
+        stage: task.status,
+        progress: task.progress,
+        error: '',
+        debugInfo: '',
       });
-
-      // --- Check for Success ---
-      if (processStatus.status === 'ok' && processStatus.overall_progress === 100) {
-        ztoolkit.log(`Translation completed for PDF ID: ${pdfId} (${attachmentFilename})`);
-        updateTaskInList(attachmentId, {
-          status: 'translating',
-          stage: 'downloading',
-          progress: 100,
+      if (task.status === 'failed') {
+        updateTaskInList(taskData.attachmentId, {
+          status: 'failed',
+          error: task.error?.message || task.error?.code || getString('api-task-failed'),
         });
-
-        // Download the result
-        try {
-          downloadTranslateResult({ pdfId, taskData, parentItem });
-          // Remove task from monitor after success
-          this.activeTasks.delete(pdfId);
-        } catch (downloadError: any) {
-          ztoolkit.log(
-            `ERROR: Failed to download result for ${pdfId} (${attachmentFilename}):`,
-            downloadError.message || downloadError,
-          );
-          updateTaskInList(attachmentId, {
-            status: 'failed',
-            error: downloadError.message || 'Failed to download result',
-          });
-          // Remove failed task from monitor
-          this.activeTasks.delete(pdfId);
-        }
+        this.activeTasks.delete(pdfId);
         return;
       }
-
-      // --- Check for Failure ---
-      if (processStatus.status && processStatus.status !== '' && processStatus.status !== 'ok') {
-        const errorMsg = `Translation failed with status: ${processStatus.status}`;
-        ztoolkit.log(`ERROR: ${errorMsg} for PDF ID: ${pdfId} (${attachmentFilename}).`);
-        updateTaskInList(attachmentId, {
-          status: 'failed',
-          error: processStatus.message,
-        });
-        // Remove failed task from monitor
-        this.activeTasks.delete(pdfId);
+      if (task.status === 'completed') {
+        const kinds =
+          taskData.translateMode === 'all'
+            ? (['compare', 'translated'] as const)
+            : taskData.translateMode === 'dual'
+              ? (['compare'] as const)
+              : (['translated'] as const);
+        if (kinds.every((kind) => typeof task.files[kind] === 'string' && task.files[kind])) {
+          await downloadTranslateResult(task, taskData, parentItem);
+          this.activeTasks.delete(pdfId);
+          return;
+        }
       }
-    } catch (error: any) {
-      // Handle API call errors
-      const taskInfo = this.activeTasks.get(pdfId);
-      if (taskInfo) {
-        ztoolkit.log(
-          `ERROR: During polling check for PDF ID ${pdfId} (${taskInfo.taskData.attachmentFilename}):`,
-          error.message || error,
-        );
-
-        updateTaskInList(taskInfo.taskData.attachmentId, {
-          status: 'failed',
-          error: error.message || 'Error checking translation status',
-        });
+      // progress=100 is NOT completion; completed files can still be unavailable.
+      entry.failures = 0;
+      entry.nextPoll = Date.now() + this.pollingInterval;
+    } catch (error) {
+      updateTaskInList(taskData.attachmentId, { debugInfo: formatErrorDiagnostic(error) });
+      const delay = retryDelay(error, entry.failures++);
+      if (delay !== null) {
+        entry.nextPoll = Date.now() + delay;
+        // Share rate-limit/backoff across all monitored tasks.
+        this.nextReadAt = Math.max(this.nextReadAt, entry.nextPoll);
+      } else {
+        this.pause(pdfId, entry, (error as Error).message || getString('api-request-failed'));
       }
-      // Remove failed task from monitor
-      this.activeTasks.delete(pdfId);
     }
   },
 };
 
-// Modified signature to use taskData
-async function downloadTranslateResult({
-  pdfId,
-  taskData, // Use TranslationTaskData
-  parentItem: parentItem, // Rename item to parentItem for clarity
-}: {
-  pdfId: string;
-  taskData: TranslationTaskData;
-  parentItem?: Zotero.Item;
-}) {
-  try {
-    const result = await addon.api.getTranslatePdfResult({ pdfId });
-    ztoolkit.log(`Download Result Info for ${taskData.attachmentFilename}:`, result);
-    const translateMode = taskData.translateMode;
-    // Update the task status
-    updateTaskInList(taskData.attachmentId, {
-      status: 'translating',
-      stage: 'downloading',
-      progress: 100,
-    });
-
-    // Handle the case where we want to download both types
-    if (translateMode === 'all') {
-      // Download and process both PDF types
-      const dualResult = await downloadAndProcessPdf({
-        fileUrl: result.translationDualPdfOssUrl,
-        mode: 'dual',
-        pdfId,
-        taskData,
-        parentItem,
-      });
-
-      const translationOnlyResult = await downloadAndProcessPdf({
-        fileUrl: result.translationOnlyPdfOssUrl,
-        mode: 'translation',
-        pdfId,
-        taskData,
-        parentItem,
-      });
-
-      // Update final status using the ID of the translation-only version
-      updateTaskInList(taskData.attachmentId, {
-        status: 'success',
-        stage: 'completed',
-        progress: 100,
-        resultAttachmentId: dualResult.id,
-      });
-
-      return;
-    }
-
-    // For single PDF download, determine which URL to use
-    const fileUrl =
-      translateMode === 'dual' ? result.translationDualPdfOssUrl : result.translationOnlyPdfOssUrl;
-
-    // Use the common helper function for single file download too
+async function downloadTranslateResult(
+  task: Task,
+  taskData: TranslationTaskData,
+  parentItem?: Zotero.Item,
+) {
+  updateTaskInList(taskData.attachmentId, { stage: 'downloading', progress: null });
+  const kinds =
+    taskData.translateMode === 'all'
+      ? (['compare', 'translated'] as const)
+      : taskData.translateMode === 'dual'
+        ? (['compare'] as const)
+        : (['translated'] as const);
+  taskData.importedKinds ||= {};
+  for (const kind of kinds) {
+    const existing = taskData.importedKinds[kind];
+    if (existing && Zotero.Items.get(existing)) continue;
+    const fileUrl = task.files[kind];
+    if (!fileUrl) throw new Error(getString('download-failed'));
     const attachment = await downloadAndProcessPdf({
       fileUrl,
-      mode: translateMode,
-      pdfId,
+      mode: kind === 'compare' ? 'dual' : 'translation',
+      pdfId: task.id,
       taskData,
       parentItem,
     });
-
-    // Update final status in taskList
-    updateTaskInList(taskData.attachmentId, {
-      status: 'success',
-      stage: 'completed',
-      progress: 100,
-      resultAttachmentId: attachment.id,
-    });
-  } catch (error: any) {
-    ztoolkit.log(
-      `ERROR: Failed download/process for PDF ID ${pdfId} (${taskData.attachmentFilename}):`,
-      error.message || error,
-    );
-    // 更新任务状态为下载失败
-    updateTaskInList(taskData.attachmentId, {
-      status: 'failed',
-      stage: getString('download-failed'),
-      error: error.message || getString('download-failed'),
-    });
-    throw error;
+    taskData.importedKinds[kind] = attachment.id;
+    updateTaskInList(taskData.attachmentId, { importedKinds: { ...taskData.importedKinds } });
   }
+  updateTaskInList(taskData.attachmentId, {
+    status: 'success',
+    stage: 'completed',
+    progress: 100,
+    error: '',
+    resultAttachmentId: taskData.importedKinds.compare || taskData.importedKinds.translated,
+  });
 }
 
 // Helper function to download and process a single PDF file
@@ -244,8 +167,6 @@ async function downloadAndProcessPdf({
   if (!fileUrl) {
     throw new Error(`No download URL found for ${mode} mode (${taskData.attachmentFilename}).`);
   }
-
-  ztoolkit.log(`File URL for ${taskData.attachmentFilename} (${mode}):`, fileUrl);
 
   const fileBuffer = await addon.api.downloadPdf(fileUrl);
   ztoolkit.log(
@@ -276,7 +197,9 @@ async function downloadAndProcessPdf({
       ? undefined
       : Zotero.Items.get(taskData.attachmentId).getCollections(),
     libraryID: parentItem?.libraryID,
-    title: fileName,
+    title: getString(mode === 'dual' ? 'attachment-title-compare' : 'attachment-title-translated', {
+      args: { language: getLanguageName(targetLanguage, Zotero.locale) },
+    }),
     contentType: 'application/pdf',
   });
 

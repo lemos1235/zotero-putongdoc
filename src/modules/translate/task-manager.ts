@@ -3,12 +3,12 @@ import { config } from '../../../package.json';
 import { getString } from '../../utils/locale';
 import { saveTranslationData } from './persistence';
 import { Status, TranslationTaskData } from '../../types';
-import { getTranslateModeLabel, getTranslateModelLabel } from '../../config';
 import { Language } from '../language/types';
 import { getLanguageName } from '../language';
 import { showDialog } from '../../utils/dialog';
 import { startQueueProcessing } from './task';
 import { ISSUES_URL } from '../../utils/const';
+import { getTaskColumns, TASK_TABLE_MIN_WIDTH } from './task-columns';
 
 /**
  * 显示翻译任务列表的弹窗
@@ -25,73 +25,25 @@ export async function showTaskManager() {
     const win = Zotero.getMainWindow().openDialog(
       `chrome://${config.addonRef}/content/taskManager.xhtml`,
       `${config.addonRef}-taskManager`,
-      `chrome,centerscreen,resizable,status,dialog=no`,
+      `chrome,centerscreen,resizable,status,dialog=no,width=1200,height=640`,
       windowArgs,
     )!;
     await windowArgs._initPromise.promise;
     addon.data.task.window = win;
+    const tableContainer = win.document.getElementById('table-container') as HTMLElement;
+    tableContainer.style.setProperty('--task-table-min-width', `${TASK_TABLE_MIN_WIDTH}px`);
+    tableContainer.addEventListener('mouseover', (event) => {
+      const cell = (event.target as Element | null)?.closest?.('.cell, [role="gridcell"]');
+      if (cell) cell.setAttribute('title', cell.textContent || '');
+    });
     addon.data.task.tableHelper = new ztoolkit.VirtualizedTable(win!)
       .setContainerId('table-container')
       .setProp({
         id: 'manager-table',
         // Do not use setLocale, as it modifies the Zotero.Intl.strings
         // Set locales directly to columns
-        columns: [
-          {
-            dataKey: 'parentItemTitle',
-            label: getString('column-item'),
-            fixedWidth: false,
-          },
-          {
-            dataKey: 'attachmentFilename',
-            label: getString('column-attachment'),
-            fixedWidth: false,
-          },
-          {
-            dataKey: 'targetLanguage',
-            label: getString('column-target-language'),
-            fixedWidth: false,
-          },
-          {
-            dataKey: 'translateModel',
-            label: getString('column-translate-model'),
-            fixedWidth: false,
-          },
-          {
-            dataKey: 'translateMode',
-            label: getString('column-translate-mode'),
-            fixedWidth: false,
-          },
-          {
-            dataKey: 'pdfId',
-            label: getString('column-pdfId'),
-            fixedWidth: false,
-          },
-          {
-            dataKey: 'status',
-            label: getString('column-status'),
-            fixedWidth: false,
-          },
-          {
-            dataKey: 'stage',
-            label: getString('column-stage'),
-            fixedWidth: false,
-          },
-          {
-            dataKey: 'progress',
-            label: getString('column-progress'),
-            fixedWidth: false,
-          },
-          {
-            dataKey: 'error',
-            label: getString('column-error'),
-            fixedWidth: false,
-          },
-        ].map((column) =>
-          Object.assign(column, {
-            label: column.label,
-          }),
-        ),
+        columns: getTaskColumns(),
+        containerWidth: Math.max(TASK_TABLE_MIN_WIDTH, tableContainer.clientWidth),
         showHeader: true,
         multiSelect: false,
         staticColumns: false,
@@ -102,14 +54,10 @@ export async function showTaskManager() {
         const task = addon.data.task.translationTaskList[index];
         return {
           status: getStatusText(task.status),
-          progress: `${task.progress || '0'}%`,
+          progress: task.progress == null ? '-' : `${task.progress}%`,
           parentItemTitle: task.parentItemTitle || '-',
-          attachmentFilename: task.attachmentFilename || '',
           targetLanguage: getLanguageName(task.targetLanguage, Zotero.locale as Language) || '',
-          translateModel: getTranslateModelLabel(task.translateModel) || '',
-          translateMode: getTranslateModeLabel(task.translateMode) || '',
           stage: getStageText(task.stage) || '',
-          pdfId: task.pdfId || '-',
           error: task.error || '-',
           resultAttachmentId: task.resultAttachmentId?.toString() || '',
         };
@@ -134,11 +82,25 @@ export async function showTaskManager() {
       .render();
     const refreshButton = win.document.querySelector('#refresh') as HTMLButtonElement;
     const copyPdfIdButton = win.document.querySelector('#copy-pdf-id') as HTMLButtonElement;
+    const copyDebugInfoButton = win.document.querySelector('#copy-debug-info') as HTMLButtonElement;
     const cancelButton = win.document.querySelector('#cancel') as HTMLButtonElement;
     const viewPdfButton = win.document.querySelector('#view-pdf') as HTMLButtonElement;
     const retryButton = win.document.querySelector('#retry') as HTMLButtonElement;
     const feedbackButton = win.document.querySelector('#feedback') as HTMLButtonElement;
     const clearButton = win.document.querySelector('#clearQueue') as HTMLButtonElement;
+    copyDebugInfoButton.addEventListener('click', () => {
+      const task = getSelectedTasks()[0];
+      if (!task) {
+        showDialog({ title: getString('task-select-tip') });
+        return;
+      }
+      if (!task.debugInfo) {
+        showDialog({ title: getString('task-debug-empty') });
+        return;
+      }
+      new ztoolkit.Clipboard().addText(task.debugInfo, 'text/unicode').copy();
+      showDialog({ title: getString('task-debug-copied'), message: task.debugInfo });
+    });
     clearButton.addEventListener('click', (ev) => {
       addon.data.task.translationGlobalQueue = [];
       addon.data.task.translationTaskList = [];
@@ -170,10 +132,16 @@ export async function showTaskManager() {
       const tasks = getSelectedTasks();
       if (tasks.length > 0) {
         const task = tasks[0];
-        if (task.status === 'failed') {
+        if (task.status === 'uncertain' || (!task.pdfId && task.submissionPending)) {
+          showDialog({ title: getString('api-submission-uncertain') });
+          return;
+        }
+        if (task.status === 'failed' || task.status === 'paused') {
           // Update task status to queued
           updateTaskInList(task.attachmentId, {
+            status: 'queued',
             error: '',
+            debugInfo: '',
           });
 
           // Add back to the global queue if not already there
@@ -282,17 +250,7 @@ async function refresh() {
 }
 
 // Helper function to update a task in the translationTaskList
-export function updateTaskInList(
-  attachmentId: number,
-  updates: {
-    status?: Status;
-    stage?: string;
-    pdfId?: string;
-    progress?: number;
-    resultAttachmentId?: number;
-    error?: string;
-  },
-) {
+export function updateTaskInList(attachmentId: number, updates: Partial<TranslationTaskData>) {
   if (!addon.data.task.translationTaskList) return;
 
   // Find the task from the end of the array (most recent task) - simple approach
@@ -369,6 +327,8 @@ function getStatusText(status?: string) {
     translating: getString('task-status-translating'),
     success: getString('task-status-success'),
     failed: getString('task-status-failed'),
+    paused: getString('task-status-paused'),
+    uncertain: getString('task-status-uncertain'),
     canceled: getString('task-status-canceled'),
   };
 
@@ -381,6 +341,11 @@ function getStageText(stage?: string) {
   if (!stage) return '';
   const translationMap: { [key: string]: string } = {
     queued: getString('task-stage-queued'),
+    preparing: getString('task-stage-preparing'),
+    extracting: getString('task-stage-extracting'),
+    translating: getString('task-stage-translating'),
+    rendering: getString('task-stage-rendering'),
+    archiving: getString('task-stage-archiving'),
     uploading: getString('task-stage-uploading'),
     downloading: getString('task-stage-downloading'),
     completed: getString('task-stage-completed'),

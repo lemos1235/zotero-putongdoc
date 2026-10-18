@@ -1,6 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
-  <rect width="96" height="96" rx="20" fill="#2563eb"/>
-  <path d="M28 18h28l14 14v46H28z" fill="#fff"/>
-  <path d="M56 18v14h14" fill="#bfdbfe"/>
-  <path d="M38 46h22M38 56h22M38 66h14" fill="none" stroke="#2563eb" stroke-width="5" stroke-linecap="round"/>
+<svg
+  width="16"
+  height="16"
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 48 48"
+  role="img"
+  aria-label="PuTong">
+  <defs>
+    <!-- 图标背景渐变：暖驼金（与 PutongLogo.svelte 保持一致） -->
+    <linearGradient id="putong-icon-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color: #b89f80; stop-opacity: 1" />
+      <stop offset="100%" style="stop-color: #937756; stop-opacity: 1" />
+    </linearGradient>
+  </defs>
+
+  <!-- 圆角方形背景 -->
+  <rect x="2" y="2" width="44" height="44" rx="12" ry="12" fill="url(#putong-icon-grad)" />
+
+  <!-- 字母 P -->
+  <path
+    d="M16 14 L16 34 M16 14 L26 14 C31 14 34 18 34 22 C34 26 31 30 26 30 L16 30"
+    stroke="white"
+    stroke-width="3.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none" />
 </svg>

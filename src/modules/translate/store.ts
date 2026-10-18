@@ -29,7 +29,8 @@ function getTaskText(keyName: string): string {
 }
 
 function setTask(task: TranslationTaskData): void {
-  addon.data.task.data?.setValue(task.attachmentId.toString(), task);
+  if (!addon.data.task.data) throw new Error('Translation store is not initialized');
+  addon.data.task.data.setValue(task.attachmentId.toString(), task);
 }
 
 function removeTask(keyName: string | undefined): void {

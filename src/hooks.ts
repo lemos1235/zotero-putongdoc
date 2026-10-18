@@ -1,16 +1,9 @@
 import { getString, initLocale } from './utils/locale';
 import { registerPrefs, registerPrefsScripts } from './modules/preference-window';
-import { registerShortcuts } from './modules/shortcuts';
 import { createZToolkit } from './utils/ztoolkit';
 import { registerMenu, registerWindowMenu } from './modules/menu';
 import { registerToolbar } from './modules/toolbar';
-import { registerNotifier } from './modules/notify';
-import {
-  addTasksToQueue,
-  addTasksToQueueByIds,
-  startQueueProcessing,
-  shouldSkipAttachment,
-} from './modules/translate/task';
+import { addTasksToQueue, startQueueProcessing } from './modules/translate/task';
 import {
   loadSavedTranslationData,
   restoreUnfinishedTasks,
@@ -18,7 +11,6 @@ import {
 } from './modules/translate/persistence';
 import { showTaskManager } from './modules/translate/task-manager';
 import { initTasks } from './modules/translate/store';
-import { getPref } from './utils/prefs';
 import { removeKnownMenuElements } from './utils/menu';
 
 async function onStartup() {
@@ -27,10 +19,6 @@ async function onStartup() {
   initLocale();
 
   registerPrefs();
-
-  registerNotifier(['item', 'file']);
-
-  registerShortcuts();
 
   initTasks();
 
@@ -107,62 +95,6 @@ function onShutdown(): void {
 }
 
 /**
- * This function is just an example of dispatcher for Notify events.
- * Any operations should be placed in a function to keep this function clear.
- */
-async function onNotify(
-  event: string,
-  type: string,
-  ids: Array<string | number>,
-  extraData: { [key: string]: any },
-) {
-  ztoolkit.log('notify', event, type, ids, extraData);
-  const isAutoTranslateEnabled = getPref('autoTranslate');
-  ztoolkit.log('isAutoTranslateEnabled', isAutoTranslateEnabled);
-  if (!isAutoTranslateEnabled) {
-    return;
-  }
-  if (event === 'add' && type === 'item') {
-    const newIds = [];
-    for (const id of ids) {
-      const item = Zotero.Items.get(id);
-      const isPDFAttachment = item.isPDFAttachment();
-
-      if (item.isRegularItem()) {
-        // ✅ 情况①：解析成功，生成新条目（主条目）
-        ztoolkit.log('【情况①】创建了主条目:', item.getField('title'));
-        newIds.push(item.id);
-      } else if (isPDFAttachment) {
-        const parentID = item.parentID;
-        ztoolkit.log('item.attachmentFilename', item.attachmentFilename);
-        const shouldSkip = shouldSkipAttachment(item);
-        if (shouldSkip) {
-          ztoolkit.log('【情况④】跳过翻译结果附件:', item.attachmentFilename);
-          continue;
-        }
-        if (parentID) {
-          // 📎 情况③：添加到已有条目下的附件
-          ztoolkit.log(
-            '【情况③】添加附件到已有条目:',
-            item.attachmentFilename,
-            '，父项ID:',
-            parentID,
-          );
-          //
-          newIds.push(item.id);
-        } else {
-          // ❌ 情况②：无法识别，仅上传为独立附件
-          ztoolkit.log('【情况②】独立附件（无法识别的PDF）暂不支持:', item.attachmentFilename);
-        }
-      }
-    }
-    if (newIds.length > 0) {
-      addTasksToQueueByIds(newIds);
-    }
-  }
-}
-
-/**
  * This function is just an example of dispatcher for Preference UI events.
  * Any operations should be placed in a function to keep this function clear.
  * @param type event type
@@ -175,22 +107,6 @@ async function onPrefsEvent(type: string, data: { [key: string]: any }) {
       break;
     default:
       return;
-  }
-}
-
-function onShortcuts(type: string) {
-  if (!getPref('enableShortcuts')) {
-    return;
-  }
-  switch (type) {
-    case 'translate':
-      addTasksToQueue();
-      break;
-    case 'showTaskManager':
-      showTaskManager();
-      break;
-    default:
-      break;
   }
 }
 
@@ -211,9 +127,7 @@ export default {
   onShutdown,
   onMainWindowLoad,
   onMainWindowUnload,
-  onNotify,
   onPrefsEvent,
-  onShortcuts,
   onTranslate,
   onViewTranslationTasks,
 };

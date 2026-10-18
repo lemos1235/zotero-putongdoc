@@ -2,31 +2,9 @@ import { config } from '../../package.json';
 import { getString } from '../utils/locale';
 import { getPref, setPref } from '../utils/prefs';
 import { showDialog } from '../utils/dialog';
-import { getLanguages, getLanguageName } from './language';
-import {
-  translateModes,
-  translateModels,
-  dualModeOptions,
-  fontFamilyOptions,
-  ocrWorkaroundOptions,
-  layoutModelOptions,
-} from '../config';
-import type { Language } from './language/types';
-import {
-  DEFAULT_SHORTCUTS,
-  formatShortcutForDisplay,
-  getShortcutFromKeyboardEvent,
-  isBareShiftLetterShortcut,
-  normalizeShortcutString,
-} from './shortcuts';
-
-type ShortcutInputConfig = {
-  inputId: string;
-  resetId: string;
-  prefKey: 'shortcutTranslate' | 'shortcutTaskManager';
-  otherPrefKey: 'shortcutTranslate' | 'shortcutTaskManager';
-};
-
+import { getLanguageOptions } from './language';
+import { translateModes, extractBackends } from '../config';
+import { getApiToken, saveApiToken } from '../api/credentials';
 export function registerPrefs() {
   Zotero.PreferencePanes.register({
     pluginID: addon.data.config.addonID,
@@ -37,388 +15,143 @@ export function registerPrefs() {
 }
 
 export async function registerPrefsScripts(_window: Window) {
-  // This function is called when the prefs window is opened
-  // See addon/content/preferences.xhtml onpaneload
-  if (!addon.data.prefs) {
-    addon.data.prefs = {
-      window: _window,
-    };
-  } else {
-    addon.data.prefs.window = _window;
-  }
+  addon.data.prefs = { window: _window };
   buildPrefsPane();
   bindPrefEvents();
+  try {
+    await getApiToken();
+    setTokenConfigured(true);
+  } catch {
+    setTokenConfigured(false);
+  }
+}
+
+function replaceMenu(
+  id: string,
+  pref: 'targetLanguage' | 'translateMode' | 'extractBackend',
+  items: { value: string; label: string }[],
+) {
+  const doc = addon.data.prefs!.window.document;
+  const target = doc.getElementById(id) || doc.getElementById(`${id}-placeholder`);
+  if (!target) return;
+  const selected = items.find((item) => item.value === getPref(pref)) || items[0];
+  ztoolkit.UI.replaceElement(
+    {
+      tag: 'menulist',
+      id,
+      attributes: {
+        value: selected?.value || '',
+        label: selected?.label || '',
+        native: 'true',
+      },
+      styles: { width: '250px', minWidth: '220px', maxWidth: '300px' },
+      children: [
+        {
+          tag: 'menupopup',
+          children: items.map((item) => ({
+            tag: 'menuitem',
+            attributes: { label: item.label, value: item.value },
+          })),
+        },
+      ],
+      listeners: [
+        {
+          type: 'command',
+          listener: (event: Event) => setPref(pref, (event.target as XUL.MenuList).value),
+        },
+      ],
+    },
+    target,
+  );
+}
+
+function buildLanguageMenu() {
+  replaceMenu(
+    `${config.addonRef}-target-language`,
+    'targetLanguage',
+    getLanguageOptions(Zotero.locale),
+  );
 }
 
 function buildPrefsPane() {
-  const doc = addon.data.prefs?.window?.document;
-  if (!doc) {
-    return;
+  buildLanguageMenu();
+  for (const [id, pref, items] of [
+    ['translate-mode', 'translateMode', translateModes],
+    ['extract-backend', 'extractBackend', extractBackends],
+  ] as const) {
+    replaceMenu(
+      `${config.addonRef}-${id}`,
+      pref,
+      items.map((item) => ({ ...item, label: getString(item.label) })),
+    );
   }
-  ztoolkit.UI.replaceElement(
-    {
-      tag: 'menulist',
-      id: `${config.addonRef}-target-language`,
-      attributes: {
-        value: getPref('targetLanguage') as string,
-        native: 'true',
-      },
-      styles: {
-        maxWidth: '250px',
-      },
-      children: [
-        {
-          tag: 'menupopup',
-          children: getLanguages().map((lang) => {
-            const nativeLang = getLanguageName(lang, Zotero.locale as Language);
-            return {
-              tag: 'menuitem',
-              attributes: {
-                label: nativeLang,
-                value: lang,
-              },
-            };
-          }),
-        },
-      ],
-      listeners: [
-        {
-          type: 'command',
-          listener: (e: Event) => {
-            ztoolkit.log(e);
-            setPref('targetLanguage', (e.target as XUL.MenuList).value);
-          },
-        },
-      ],
-    },
-    doc.querySelector(`#${config.addonRef}-target-language-placeholder`)!,
-  );
+}
 
-  ztoolkit.UI.replaceElement(
-    {
-      tag: 'menulist',
-      id: `${config.addonRef}-translate-mode`,
-      attributes: {
-        value: getPref('translateMode') as string,
-        native: 'true',
-      },
-      styles: {
-        maxWidth: '250px',
-      },
-      children: [
-        {
-          tag: 'menupopup',
-          children: translateModes.map((item) => {
-            return {
-              tag: 'menuitem',
-              attributes: {
-                label: getString(item.label),
-                value: item.value,
-              },
-            };
-          }),
-        },
-      ],
-      listeners: [
-        {
-          type: 'command',
-          listener: (e: Event) => {
-            ztoolkit.log(e);
-            setPref('translateMode', (e.target as XUL.MenuList).value);
-          },
-        },
-      ],
-    },
-    doc.querySelector(`#${config.addonRef}-translate-mode-placeholder`)!,
-  );
+function setTokenFeedback(message: string) {
+  const element = addon.data.prefs?.window.document.getElementById('putongdoc-token-feedback');
+  if (element) element.textContent = message;
+}
 
-  const real_translateModels = translateModels;
-
-  ztoolkit.UI.replaceElement(
-    {
-      tag: 'menulist',
-      id: `${config.addonRef}-translate-model`,
-      attributes: {
-        value: getPref('translateModel') as string,
-        native: 'true',
-      },
-      styles: {
-        maxWidth: '250px',
-      },
-      children: [
-        {
-          tag: 'menupopup',
-          children: real_translateModels.map((item) => {
-            return {
-              tag: 'menuitem',
-              attributes: {
-                label: getString(item.label),
-                value: item.value,
-              },
-            };
-          }),
-        },
-      ],
-      listeners: [
-        {
-          type: 'command',
-          listener: (e: Event) => {
-            ztoolkit.log(e);
-            setPref('translateModel', (e.target as XUL.MenuList).value);
-          },
-        },
-      ],
-    },
-    doc.querySelector(`#${config.addonRef}-translate-model-placeholder`)!,
+function setTokenConfigured(configured: boolean) {
+  const input = addon.data.prefs?.window.document.querySelector<HTMLInputElement>(
+    `#zotero-prefpane-${config.addonRef}-authkey`,
   );
-
-  ztoolkit.UI.replaceElement(
-    {
-      tag: 'menulist',
-      id: `${config.addonRef}-enable-ocr-workaround`,
-      attributes: {
-        value: getPref('ocrWorkaround') as string,
-        native: 'true',
-      },
-      styles: {
-        maxWidth: '250px',
-      },
-      children: [
-        {
-          tag: 'menupopup',
-          children: ocrWorkaroundOptions.map((item) => {
-            return {
-              tag: 'menuitem',
-              attributes: {
-                label: getString(item.label),
-                value: item.value,
-              },
-            };
-          }),
-        },
-      ],
-      listeners: [
-        {
-          type: 'command',
-          listener: (e: Event) => {
-            ztoolkit.log(e);
-            setPref('ocrWorkaround', (e.target as XUL.MenuList).value);
-          },
-        },
-      ],
-    },
-    doc.querySelector(`#${config.addonRef}-enable-ocr-workaround-placeholder`)!,
-  );
-
-  ztoolkit.UI.replaceElement(
-    {
-      tag: 'menulist',
-      id: `${config.addonRef}-font-family`,
-      attributes: {
-        value: getPref('primaryFontFamily') as string,
-        native: 'true',
-      },
-      styles: {
-        maxWidth: '250px',
-      },
-      children: [
-        {
-          tag: 'menupopup',
-          children: fontFamilyOptions.map((item) => {
-            return {
-              tag: 'menuitem',
-              attributes: {
-                label: getString(item.label),
-                value: item.value,
-              },
-            };
-          }),
-        },
-      ],
-      listeners: [
-        {
-          type: 'command',
-          listener: (e: Event) => {
-            ztoolkit.log(e);
-            setPref('primaryFontFamily', (e.target as XUL.MenuList).value);
-          },
-        },
-      ],
-    },
-    doc.querySelector(`#${config.addonRef}-font-family-placeholder`)!,
-  );
-
-  ztoolkit.UI.replaceElement(
-    {
-      tag: 'menulist',
-      id: `${config.addonRef}-dual-mode`,
-      attributes: {
-        value: getPref('dualMode') as string,
-        native: 'true',
-      },
-      styles: {
-        maxWidth: '250px',
-      },
-      children: [
-        {
-          tag: 'menupopup',
-          children: dualModeOptions.map((item) => {
-            return {
-              tag: 'menuitem',
-              attributes: {
-                label: getString(item.label),
-                value: item.value,
-              },
-            };
-          }),
-        },
-      ],
-      listeners: [
-        {
-          type: 'command',
-          listener: (e: Event) => {
-            ztoolkit.log(e);
-            setPref('dualMode', (e.target as XUL.MenuList).value);
-          },
-        },
-      ],
-    },
-    doc.querySelector(`#${config.addonRef}-dual-mode-placeholder`)!,
-  );
-
-  ztoolkit.UI.replaceElement(
-    {
-      tag: 'menulist',
-      id: `${config.addonRef}-layout-model`,
-      attributes: {
-        value: getPref('layoutModel') as string,
-        native: 'true',
-      },
-      styles: {
-        maxWidth: '250px',
-      },
-      children: [
-        {
-          tag: 'menupopup',
-          children: layoutModelOptions.map((item) => {
-            return {
-              tag: 'menuitem',
-              attributes: {
-                label: getString(item.label),
-                value: item.value,
-              },
-            };
-          }),
-        },
-      ],
-      listeners: [
-        {
-          type: 'command',
-          listener: (e: Event) => {
-            ztoolkit.log(e);
-            setPref('layoutModel', (e.target as XUL.MenuList).value);
-          },
-        },
-      ],
-    },
-    doc.querySelector(`#${config.addonRef}-layout-model-placeholder`)!,
-  );
+  if (input)
+    input.placeholder = getString(
+      configured ? 'api-token-placeholder-saved' : 'api-token-placeholder-empty',
+    );
+  setTokenFeedback(configured ? getString('api-token-saved') : '');
 }
 
 function bindPrefEvents() {
-  bindShortcutPrefEvents();
-
-  addon.data
-    .prefs!.window.document?.querySelector(`#zotero-prefpane-${config.addonRef}-authkey`)
-    ?.addEventListener('change', (e: Event) => {
-      ztoolkit.log(e);
-      setPref('authkey', (e.target as HTMLInputElement).value);
-    });
-
-  addon.data
-    .prefs!.window.document?.querySelector(`#zotero-prefpane-${config.addonRef}-test-button`)
-    ?.addEventListener('command', async (e: Event) => {
-      showDialog({
-        title: getString('service-not-configured'),
-      });
-    });
-}
-
-function bindShortcutPrefEvents() {
   const doc = addon.data.prefs!.window.document;
-  const shortcutInputs: ShortcutInputConfig[] = [
-    {
-      inputId: `zotero-prefpane-${config.addonRef}-shortcut-translate`,
-      resetId: `zotero-prefpane-${config.addonRef}-shortcut-translate-reset`,
-      prefKey: 'shortcutTranslate',
-      otherPrefKey: 'shortcutTaskManager',
-    },
-    {
-      inputId: `zotero-prefpane-${config.addonRef}-shortcut-task-manager`,
-      resetId: `zotero-prefpane-${config.addonRef}-shortcut-task-manager-reset`,
-      prefKey: 'shortcutTaskManager',
-      otherPrefKey: 'shortcutTranslate',
-    },
-  ];
-
-  shortcutInputs.forEach((shortcutInput) => {
-    const input = doc.querySelector<HTMLInputElement>(`#${shortcutInput.inputId}`);
-    const resetButton = doc.querySelector(`#${shortcutInput.resetId}`);
-    if (!input || !resetButton) {
-      return;
+  const input = doc.querySelector<HTMLInputElement>(`#zotero-prefpane-${config.addonRef}-authkey`)!;
+  // The input is intentionally unbound to prefs and never prefilled with a secret.
+  let saving = Promise.resolve();
+  const saveInput = () => {
+    if (input.value) {
+      const value = input.value;
+      input.value = '';
+      saving = saving
+        .catch(() => {})
+        .then(async () => {
+          await saveApiToken(value);
+          setTokenConfigured(true);
+        });
     }
-
-    input.value = formatShortcutForDisplay(getPref(shortcutInput.prefKey));
-    input.placeholder = formatShortcutForDisplay(DEFAULT_SHORTCUTS[shortcutInput.prefKey]);
-
-    input.addEventListener('keydown', (event) => {
-      const keyboardEvent = event as KeyboardEvent;
-      if (keyboardEvent.key === 'Backspace' || keyboardEvent.key === 'Delete') {
-        return;
-      }
-      keyboardEvent.preventDefault();
-      const shortcutValue = normalizeShortcutFromInputEvent(keyboardEvent);
-      if (shortcutValue) {
-        input.value = shortcutValue;
-        saveShortcutPref(shortcutInput, input);
-      }
-    });
-    input.addEventListener('change', () => saveShortcutPref(shortcutInput, input));
-    input.addEventListener('input', () => saveShortcutPref(shortcutInput, input));
-    resetButton.addEventListener('command', () => {
-      input.value = formatShortcutForDisplay(DEFAULT_SHORTCUTS[shortcutInput.prefKey]);
-      saveShortcutPref(shortcutInput, input);
-    });
+    return saving;
+  };
+  input.addEventListener('change', () => {
+    saveInput().catch(() => setTokenFeedback(getString('api-token-required')));
   });
-}
-
-function normalizeShortcutFromInputEvent(event: KeyboardEvent): string {
-  return getShortcutFromKeyboardEvent(event);
-}
-
-function saveShortcutPref(shortcutInput: ShortcutInputConfig, input: HTMLInputElement) {
-  const normalizedValue = normalizeShortcutString(input.value);
-  const otherValue = normalizeShortcutString(getPref(shortcutInput.otherPrefKey));
-  if (normalizedValue !== '' && normalizedValue === otherValue) {
-    input.value = formatShortcutForDisplay(getPref(shortcutInput.prefKey));
-    setShortcutFeedback(getString('pref-shortcut-duplicate-error'));
-    return;
-  }
-  if (isBareShiftLetterShortcut(normalizedValue)) {
-    input.value = formatShortcutForDisplay(getPref(shortcutInput.prefKey));
-    setShortcutFeedback(getString('pref-shortcut-native-conflict-error'));
-    return;
-  }
-  input.value = formatShortcutForDisplay(normalizedValue);
-  setPref(shortcutInput.prefKey, normalizedValue);
-  setShortcutFeedback(getString('pref-shortcut-conflict-guidance'));
-}
-
-function setShortcutFeedback(message: string) {
-  const feedback = addon.data.prefs!.window.document.querySelector(
-    `#zotero-prefpane-${config.addonRef}-shortcut-feedback`,
-  );
-  if (feedback) {
-    feedback.textContent = message;
-  }
+  doc
+    .querySelector(`#zotero-prefpane-${config.addonRef}-test-button`)
+    ?.addEventListener('command', async () => {
+      try {
+        await saveInput();
+        const quota = await addon.api.getQuota();
+        setTokenConfigured(true);
+        showDialog({
+          title: getString('pref-test-success'),
+          message: getString('api-quota', {
+            args: {
+              files: Math.max(0, quota.dailyFileQuota - quota.dailyUsedFiles),
+              pages: Math.max(0, quota.dailyPageQuota - quota.dailyUsedPages),
+            },
+          }),
+        });
+      } catch (error) {
+        showDialog({ title: getString('pref-test-failed'), message: (error as Error).message });
+      }
+    });
+  doc.getElementById('putongdoc-token-remove')?.addEventListener('command', async () => {
+    try {
+      await saving.catch(() => {});
+      await saveApiToken('');
+      input.value = '';
+      setTokenConfigured(false);
+    } catch {
+      setTokenFeedback(getString('pref-test-failed'));
+    }
+  });
 }

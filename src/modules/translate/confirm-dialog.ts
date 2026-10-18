@@ -1,7 +1,7 @@
-import { translateModels, translateModes } from '../../config';
+import { extractBackends, translateModes } from '../../config';
 import { getString } from '../../utils/locale';
 import { getPref, setPref } from '../../utils/prefs';
-import { getLanguageOptions } from '../language';
+import { getLanguageOptions, getLanguages } from '../language';
 import type { Language } from '../language/types';
 
 export type ConfirmationArticleInfo = {
@@ -15,15 +15,17 @@ export async function showConfirmationDialog(articleInfo?: ConfirmationArticleIn
   data?: {
     targetLanguage: Language;
     translateMode: string;
-    translateModel: string;
+    extractBackend: string;
   };
 }> {
+  const languages = getLanguages();
+  const preferred = getPref('targetLanguage');
   const dialogData: { [key: string | number]: any } = {
-    targetLanguage: getPref('targetLanguage'),
+    targetLanguage: languages.some((code) => code === preferred) ? preferred : languages[0],
     translateMode: getPref('translateMode'),
-    translateModel: getPref('translateModel'),
+    extractBackend: getPref('extractBackend'),
   };
-  const real_translateModels = translateModels;
+  const real_extractBackends = extractBackends;
 
   const articleTitle = articleInfo?.title || getString('confirm-article-unknown');
   const articleMetadata = articleInfo?.metadata || getString('confirm-article-metadata-unknown');
@@ -127,7 +129,7 @@ export async function showConfirmationDialog(articleInfo?: ConfirmationArticleIn
             tag: 'option',
             properties: {
               value: lang.value,
-              innerHTML: lang.label,
+              innerText: lang.label,
             },
           }),
         ),
@@ -178,7 +180,7 @@ export async function showConfirmationDialog(articleInfo?: ConfirmationArticleIn
       tag: 'label',
       namespace: 'html',
       properties: {
-        innerHTML: getString('confirm-translate-model'),
+        innerHTML: getString('confirm-extract-backend'),
       },
       styles: {
         width: '200px',
@@ -189,12 +191,12 @@ export async function showConfirmationDialog(articleInfo?: ConfirmationArticleIn
       0,
       {
         tag: 'select',
-        id: 'translateModel',
+        id: 'extractBackend',
         attributes: {
-          'data-bind': 'translateModel',
+          'data-bind': 'extractBackend',
           'data-prop': 'value',
         },
-        children: real_translateModels.map((model: { value: string; label: string }) => ({
+        children: real_extractBackends.map((model: { value: string; label: string }) => ({
           tag: 'option',
           properties: {
             value: model.value,
@@ -219,15 +221,18 @@ export async function showConfirmationDialog(articleInfo?: ConfirmationArticleIn
   addon.data.dialog = undefined;
   if (addon.data.alive) {
     if (dialogData._lastButtonId === 'confirm') {
+      if (!languages.some((code) => code === dialogData.targetLanguage)) {
+        throw new Error(getString('api-language-invalid'));
+      }
       setPref('targetLanguage', dialogData.targetLanguage);
       setPref('translateMode', dialogData.translateMode);
-      setPref('translateModel', dialogData.translateModel);
+      setPref('extractBackend', dialogData.extractBackend);
       return {
         action: 'confirm',
         data: dialogData as {
           targetLanguage: Language;
           translateMode: string;
-          translateModel: string;
+          extractBackend: string;
         },
       };
     } else {

@@ -1,40 +1,15 @@
-import { Language } from './types';
-import { langMap, nativeLangMap, zhCNLangMap, zhTWLangMap } from './config';
+import { languages } from './config';
 
-export const getLanguages: () => Language[] = () => {
-  return Object.keys(langMap) as Language[];
-};
+export const getLanguages = () => languages.map((language) => language.code);
 
-export const getLanguageOptions: (interfaceLanguage: Language) => {
-  value: string;
-  label: string;
-}[] = (interfaceLanguage) => {
-  return getLanguages().map((lang) => {
-    return {
-      value: lang,
-      label: getLanguageName(lang, interfaceLanguage),
-    };
-  });
-};
-
-export function getLanguageName(lang: Language, interfaceLanguage: Language) {
-  const nativeLang = nativeLangMap[lang] || lang;
-  const fallbackLang = langMap[lang] || lang;
-  const zhLang = zhCNLangMap[lang];
-  const zhTWLang = zhTWLangMap[lang];
-  const internalNames: Record<string, string> = {
-    'zh-CN': zhLang,
-    'zh-TW': zhTWLang,
-    en: fallbackLang,
-  };
-
-  if (lang === interfaceLanguage) {
-    return nativeLang;
-  }
-
-  const locale = internalNames[interfaceLanguage] ?? fallbackLang;
-
-  return `${locale} (${nativeLang})`;
+export function getLanguageOptions(interfaceLanguage: string) {
+  return languages.map((language) => ({
+    value: language.code,
+    label: interfaceLanguage.startsWith('zh') ? language.name : language.nameEn,
+  }));
 }
 
-export { langMap, nativeLangMap, zhCNLangMap, zhTWLangMap } from './config';
+export function getLanguageName(code: string, interfaceLanguage: string) {
+  const language = languages.find((language) => language.code === code);
+  return language ? (interfaceLanguage.startsWith('zh') ? language.name : language.nameEn) : code;
+}

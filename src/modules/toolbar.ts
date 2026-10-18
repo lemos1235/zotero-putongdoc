@@ -6,6 +6,16 @@ export function registerToolbar() {
   const ui = new UITool();
   const document = ztoolkit.getGlobal('document');
   const toolbarIcon = `chrome://${addon.data.config.addonRef}/content/icons/icon.svg`;
+  const stylesheet = ui.createElement(document, 'link', {
+    id: 'putongdoc-toolbar-style',
+    namespace: 'html',
+    removeIfExists: true,
+    attributes: {
+      rel: 'stylesheet',
+      href: `chrome://${addon.data.config.addonRef}/content/zoteroPane.css`,
+    },
+  });
+  document.documentElement.append(stylesheet);
   const ariaBtn = ui.createElement(document, 'toolbarbutton', {
     id: 'zotero-tb-imt',
     removeIfExists: true,

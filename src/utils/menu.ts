@@ -9,5 +9,7 @@ export function removeMenuElement(doc: Document, id: string): void {
 }
 
 export function removeKnownMenuElements(doc: Document): void {
-  Object.values(MENU_IDS).forEach((id) => removeMenuElement(doc, id));
+  [...Object.values(MENU_IDS), 'zotero-tb-imt', 'putongdoc-toolbar-style'].forEach((id) =>
+    removeMenuElement(doc, id),
+  );
 }

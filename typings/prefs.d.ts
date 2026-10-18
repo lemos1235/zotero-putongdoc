@@ -10,20 +10,8 @@ declare namespace _ZoteroTypes {
       "authkey": string;
       "targetLanguage": string;
       "translateMode": string;
-      "translateModel": string;
-      "enhanceCompatibility": boolean;
-      "autoTranslate": boolean;
+      "extractBackend": string;
       "autoOpenPDF": boolean;
-      "ocrWorkaround": string;
-      "autoExtractGlossary": boolean;
-      "richTextTranslate": boolean;
-      "primaryFontFamily": string;
-      "dualMode": string;
-      "customSystemPrompt": string;
-      "enableShortcuts": boolean;
-      "shortcutTranslate": string;
-      "shortcutTaskManager": string;
-      "layoutModel": string;
     };
   }
 }

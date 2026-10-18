@@ -3,11 +3,12 @@ import { showTaskManager, updateTaskInList } from './task-manager';
 import type { TranslationTaskData } from '../../types';
 import { getPref } from '../../utils/prefs';
 import { showConfirmationDialog } from './confirm-dialog';
-import { translatePDF } from './translate';
+import { translatePDF, getTranslationOptions } from './translate';
 import { TranslationTaskMonitor } from './task-monitor';
 import { getString } from '../../utils/locale';
 import { showDialog } from '../../utils/dialog';
 import { Language } from '../language/types';
+import { getSubmissionFailure } from './task-diagnostics';
 
 const ATTR_TAG = 'PutongDoc_translated';
 
@@ -17,7 +18,8 @@ const ATTR_TAG = 'PutongDoc_translated';
 export function isAttachmentInTaskList(attachmentId: number): boolean {
   return !!addon.data.task.translationTaskList?.find(
     (task) =>
-      task.attachmentId === attachmentId && task.status !== 'success' && task.status !== 'failed',
+      task.attachmentId === attachmentId &&
+      !['success', 'failed', 'canceled'].includes(task.status || ''),
   );
 }
 
@@ -28,10 +30,13 @@ type ConfirmationArticleInfo = {
 };
 
 async function validateTranslationAuth(): Promise<boolean> {
-  showDialog({
-    title: getString('service-not-configured'),
-  });
-  return false;
+  try {
+    await addon.api.getQuota();
+    return true;
+  } catch (error) {
+    showDialog({ title: getString('pref-test-failed'), message: (error as Error).message });
+    return false;
+  }
 }
 
 export async function addTasksToQueue() {
@@ -39,15 +44,11 @@ export async function addTasksToQueue() {
     return;
   }
 
-  await addTasksToQueueFromTasks(await getTranslationTasks());
-}
-
-export async function addTasksToQueueByIds(ids: number[]) {
-  if (!(await validateTranslationAuth())) {
-    return;
+  try {
+    await addTasksToQueueFromTasks(await getTranslationTasks());
+  } catch (error) {
+    showDialog({ title: getString('pref-test-failed'), message: (error as Error).message });
   }
-
-  await addTasksToQueueFromTasks(await getTranslationTasksByIds(ids));
 }
 
 async function addTasksToQueueFromTasks(tasksToQueue: TranslationTaskData[]) {
@@ -59,7 +60,6 @@ async function addTasksToQueueFromTasks(tasksToQueue: TranslationTaskData[]) {
     return;
   }
   const translateMode = getPref('translateMode');
-  const translateModel = getPref('translateModel');
   const targetLanguage = getPref('targetLanguage') as Language;
   const confirmResult = await showConfirmationDialog(getConfirmationArticleInfo(tasksToQueue));
   if (confirmResult.action === 'cancel') {
@@ -68,7 +68,9 @@ async function addTasksToQueueFromTasks(tasksToQueue: TranslationTaskData[]) {
 
   tasksToQueue.forEach((task) => {
     task.translateMode = confirmResult.data?.translateMode || translateMode;
-    task.translateModel = confirmResult.data?.translateModel || translateModel;
+    task.options = getTranslationOptions();
+    task.options.extractBackend = confirmResult.data?.extractBackend as
+      'native' | 'mineru' | 'zhipu';
     task.targetLanguage = confirmResult.data?.targetLanguage || targetLanguage;
   });
   ztoolkit.log(`Adding ${tasksToQueue.length} translation tasks to the queue.`);
@@ -85,30 +87,6 @@ async function addTasksToQueueFromTasks(tasksToQueue: TranslationTaskData[]) {
   saveTranslationData();
 
   startQueueProcessing();
-}
-
-// get translation tasks by specific attachment ids
-async function getTranslationTasksByIds(ids: number[]): Promise<TranslationTaskData[]> {
-  const tasks: TranslationTaskData[] = [];
-
-  for (const id of ids) {
-    try {
-      const item = Zotero.Items.get(id);
-      if (!item) {
-        ztoolkit.log(`Item with id ${id} not found, skipping.`);
-        continue;
-      }
-
-      const itemTasks = await processItemForTranslation(item);
-      tasks.push(...itemTasks);
-    } catch (error) {
-      ztoolkit.log(`Error processing item with id ${id}:`, error);
-      continue;
-    }
-  }
-
-  ztoolkit.log('Found tasks by ids (after refined deduplication):', tasks);
-  return tasks;
 }
 
 // get translation tasks from selected items
@@ -253,10 +231,7 @@ async function createTranslationTask(
   }
 
   const translateMode = getPref('translateMode');
-  const translateModel = getPref('translateModel');
   const targetLanguage = getPref('targetLanguage') as Language;
-  const enhanceCompatibility = getPref('enhanceCompatibility');
-  const ocrWorkaround = getPref('ocrWorkaround');
 
   return {
     parentItemId: parentItem?.id,
@@ -266,7 +241,6 @@ async function createTranslationTask(
     attachmentPath: filePath,
     status: 'queued',
     targetLanguage: targetLanguage,
-    translateModel: translateModel,
     translateMode: translateMode,
   };
 }
@@ -283,7 +257,7 @@ export async function startQueueProcessing() {
 }
 
 async function processNextItem() {
-  if (addon.data.task.translationGlobalQueue.length === 0) {
+  if (!addon.data.alive || addon.data.task.translationGlobalQueue.length === 0) {
     addon.data.task.isQueueProcessing = false;
     ztoolkit.log('Translation queue empty. Stopping processing loop.');
     saveTranslationData(); // Save the empty queue state
@@ -319,6 +293,11 @@ async function processNextItem() {
       });
       // 直接启动监控任务
       TranslationTaskMonitor.addTask(taskData.pdfId, taskData, parentItem);
+    } else if (taskData.submissionPending || taskData.status === 'uncertain') {
+      updateTaskInList(taskData.attachmentId, {
+        status: 'uncertain',
+        error: getString('api-submission-uncertain'),
+      });
     } else {
       // 常规流程 - 从上传开始
       await translatePDF(taskData, parentItem);
@@ -326,15 +305,10 @@ async function processNextItem() {
         `Initiated processing for: ${taskData.attachmentFilename}. Moving to next queue item.`,
       );
     }
-  } catch (error: any) {
-    ztoolkit.log(
-      `ERROR: Failed to initiate translation for ${taskData.attachmentFilename}:`,
-      error.message || error,
-    );
-    updateTaskInList(taskData.attachmentId, {
-      status: 'failed',
-      error: error.message || error,
-    });
+  } catch (error: unknown) {
+    const failure = getSubmissionFailure(taskData, error);
+    ztoolkit.log('PutongDoc submission failed:', failure.debugInfo);
+    updateTaskInList(taskData.attachmentId, failure);
   } finally {
     Zotero.Promise.delay(0).then(processNextItem);
   }

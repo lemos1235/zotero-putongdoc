@@ -5,7 +5,7 @@ export function showDialog({ title, message }: { title: string; message?: string
     .addCell(0, 0, {
       tag: 'h2',
       properties: {
-        innerHTML: title,
+        innerText: title,
       },
       styles: {
         width: '300px',
@@ -15,7 +15,7 @@ export function showDialog({ title, message }: { title: string; message?: string
       tag: 'label',
       namespace: 'html',
       properties: {
-        innerHTML: message,
+        innerText: message || '',
       },
       styles: {
         width: '300px',

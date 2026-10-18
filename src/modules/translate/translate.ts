@@ -1,92 +1,101 @@
 import type { TranslationTaskData } from '../../types';
+import type { CreateTranslation } from '../../api';
+import { ApiError } from '../../api/request';
 import { getPref } from '../../utils/prefs';
+import { getString } from '../../utils/locale';
 import { updateTaskInList } from './task-manager';
 import { TranslationTaskMonitor } from './task-monitor';
+import { persistSubmissionState } from './persistence';
+import { getLanguages } from '../language';
+
+export function getTranslationOptions(): NonNullable<TranslationTaskData['options']> {
+  const backend = getPref('extractBackend');
+  if (!['native', 'mineru', 'zhipu'].includes(backend)) {
+    throw new Error(getString('api-options-invalid'));
+  }
+  return {
+    extractBackend: backend as CreateTranslation['extractBackend'],
+  };
+}
 
 export async function translatePDF(
   taskData: TranslationTaskData,
   parentItem?: Zotero.Item,
 ): Promise<void> {
-  // Update task status in taskList
+  const phase = (submissionPhase: TranslationTaskData['submissionPhase']) => {
+    taskData.submissionPhase = submissionPhase;
+  };
   updateTaskInList(taskData.attachmentId, {
     status: 'uploading',
     stage: 'uploading',
-    progress: 0,
+    progress: null,
+    error: '',
+    debugInfo: '',
   });
-
-  // --- Upload ---
-  const uploadInfo = await uploadAttachmentFile(
-    taskData.attachmentPath,
-    taskData.attachmentFilename,
-  ); // Wait for upload
-  if (!uploadInfo) {
-    throw new Error(`Upload failed for ${taskData.attachmentFilename}`);
+  phase('validation');
+  const options = taskData.options || getTranslationOptions();
+  if (!taskData.attachmentPath || !/\.pdf$/i.test(taskData.attachmentFilename)) {
+    throw new Error(getString('api-pdf-invalid'));
   }
-  ztoolkit.log(`Upload successful for: ${taskData.attachmentFilename}`);
-
-  // --- Create Task ---
-  const pdfId = await addon.api.createTranslateTask({
-    objectKey: uploadInfo.result.objectKey,
-    pdfOptions: { conversion_formats: { html: true } },
-    fileName: taskData.attachmentFilename,
-    targetLanguage: taskData.targetLanguage,
-    requestModel: taskData.translateModel,
-    enhance_compatibility: getPref('enhanceCompatibility'),
-    OCRWorkaround: getPref('ocrWorkaround') === 'true' ? true : false,
-    autoEnableOcrWorkAround: getPref('ocrWorkaround') === 'auto',
-    autoExtractGlossary: getPref('autoExtractGlossary'),
-    disable_rich_text_translate: !getPref('richTextTranslate'),
-    primaryFontFamily: getPref('primaryFontFamily'),
-    dual_mode: getPref('dualMode'),
-    customSystemPrompt: getPref('customSystemPrompt') || null,
-    layout_model_id: getPref('layoutModel') || 'version_3',
+  phase('quota');
+  const quota = await addon.api.getQuota();
+  phase('read-file');
+  const stat = await IOUtils.stat(taskData.attachmentPath);
+  if (!stat.size || stat.size > quota.maxFileSize) throw new Error(getString('api-file-size'));
+  if (
+    quota.dailyUsedFiles >= quota.dailyFileQuota ||
+    quota.dailyUsedPages >= quota.dailyPageQuota
+  ) {
+    throw new Error(getString('api-quota-exhausted'));
+  }
+  if (!getLanguages().some((code) => code === taskData.targetLanguage)) {
+    throw new Error(getString('api-language-invalid'));
+  }
+  const file = await IOUtils.read(taskData.attachmentPath);
+  if (file.byteLength !== stat.size) throw new Error(getString('api-file-changed'));
+  phase('upload-url');
+  const upload = await addon.api.getPdfUploadUrl({
+    name: taskData.attachmentFilename,
+    size: file.byteLength,
   });
+  phase('upload');
+  await addon.api.uploadPdf({ upload, file });
 
-  ztoolkit.log(`Translation task created for ${taskData.attachmentFilename}. PDF ID: ${pdfId}`);
-  // Update taskData with pdfId for the monitoring task
-  updateTaskInList(taskData.attachmentId, {
-    status: 'translating',
-    stage: 'queued',
-    progress: 0,
-    pdfId: pdfId,
-  });
-
-  // Add task to centralized monitor instead of launching a separate monitoring process
-  TranslationTaskMonitor.addTask(pdfId, taskData, parentItem);
-
-  ztoolkit.log(`Task added to background monitor: ${pdfId} (${taskData.attachmentFilename}).`);
-}
-
-// Renamed and refactored to upload a single file
-async function uploadAttachmentFile(
-  attachmentPath: string,
-  attachmentFilename: string,
-): Promise<any> {
-  // Returns single upload info or throws error
-  ztoolkit.log(`Uploading attachment: ${attachmentFilename}`);
-
+  // Persist BEFORE POST: a crash/timeout after submission must never re-create a task.
+  phase('persist');
+  taskData.submissionPending = true;
+  updateTaskInList(taskData.attachmentId, { submissionPending: true, stage: 'preparing' });
+  persistSubmissionState(taskData); // A failure here prevents the POST entirely.
   try {
-    const uploadInfo = await addon.api.getPdfUploadUrl();
-    if (!attachmentPath)
-      throw new Error(`File path is missing for attachment ${attachmentFilename}`);
-    const fileContents = await IOUtils.read(attachmentPath); // Read the specific path
-    if (!fileContents) throw new Error(`Failed to read file contents for ${attachmentFilename}`);
-
-    if (typeof File === 'undefined') {
-      throw new Error('File constructor not available in this environment.');
+    phase('create');
+    const task = await addon.api.createTranslateTask({
+      // Allowlist options so restored legacy tasks cannot reintroduce removed fields.
+      extractBackend: options.extractBackend,
+      key: upload.key,
+      name: taskData.attachmentFilename,
+      targetLanguage: taskData.targetLanguage,
+    });
+    if (!task.id) throw new Error(getString('api-submission-uncertain'));
+    taskData.pdfId = task.id;
+    taskData.submissionPending = false;
+    updateTaskInList(taskData.attachmentId, {
+      pdfId: task.id,
+      submissionPending: false,
+      status: 'translating',
+      stage: task.status,
+      progress: task.progress,
+    });
+    phase('persist-id');
+    persistSubmissionState(taskData);
+    phase('monitor');
+    TranslationTaskMonitor.addTask(task.id, taskData, parentItem);
+  } catch (error) {
+    // Only an explicit business rejection establishes that no task was created.
+    if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
+      taskData.submissionPending = false;
+      updateTaskInList(taskData.attachmentId, { submissionPending: false });
+      persistSubmissionState(taskData);
     }
-    const file = new File([fileContents], attachmentFilename, {
-      type: 'application/pdf',
-    });
-
-    await addon.api.uploadPdf({
-      uploadUrl: uploadInfo.result.preSignedURL,
-      file,
-    });
-    ztoolkit.log(`Successfully uploaded ${attachmentFilename}`);
-    return uploadInfo; // Return the info for the uploaded file
-  } catch (error: any) {
-    ztoolkit.log(`ERROR: Upload failed for ${attachmentFilename}:`, error.message || error);
-    throw error; // Re-throw to be caught by handleSingleItemTranslation -> processNextItem
+    throw error;
   }
 }
