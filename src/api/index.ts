@@ -30,6 +30,7 @@ export type TaskStatus =
 export interface Task {
   id: string;
   filename: string;
+  title: string | null;
   targetLanguage: string;
   status: TaskStatus;
   progress: number | null;

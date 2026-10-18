@@ -118,8 +118,10 @@ function fixture(interfaceLanguage = 'zh-CN') {
   };
 }
 
-const remote = (status, progress = null, files = {}) => ({
+const remote = (status, progress = null, files = {}, title = null) => ({
   id: 'task-id',
+  filename: 'paper.pdf',
+  title,
   status,
   progress,
   files: { source: null, translated: null, compare: null, ...files },
@@ -201,18 +203,17 @@ test('download is awaited and both kinds are imported only once across retries',
   assert.equal(monitor.activeTasks.size, 0);
 });
 
-test('result titles are short and localized while PDF filenames remain unchanged', async () => {
-  for (const [locale, language, label, translated, compare] of [
-    ['zh-CN', 'zh-CN', '简体中文', '译文', '双语对照'],
-    ['zh-CN', 'en', '英语', '译文', '双语对照'],
-    ['en-US', 'en', 'English', 'Translation', 'Bilingual'],
-    ['zh-CN', 'unknown', 'unknown', '译文', '双语对照'],
+test('result attachments use the task title, falling back to the filename', async () => {
+  for (const [title, expected] of [
+    ['Attention Is All You Need', 'Attention Is All You Need'],
+    ['  Trimmed Title  ', 'Trimmed Title'],
+    [null, 'paper'],
+    ['', 'paper'],
   ]) {
-    const f = fixture(locale);
+    const f = fixture();
     f.taskData.translateMode = 'all';
-    f.taskData.targetLanguage = language;
     f.api.getTranslateStatus = async () =>
-      remote('completed', 100, { compare: '/compare', translated: '/translated' });
+      remote('completed', 100, { compare: '/compare', translated: '/translated' }, title);
     f.api.downloadPdf = async () => new Uint8Array([37, 80, 68, 70]).buffer;
     const monitor = f.load('src/modules/translate/task-monitor.ts').TranslationTaskMonitor;
     const entry = f.monitorEntry();
@@ -220,12 +221,10 @@ test('result titles are short and localized while PDF filenames remain unchanged
     await monitor.checkTaskProgress('task-id', entry);
     assert.equal(f.updates.at(-1).status, 'success');
     assert.equal(f.imports.length, 2);
-    const title = (kind) =>
-      locale.startsWith('zh') ? `${kind}（${label}）` : `${kind} (${label})`;
-    assert.equal(f.imports[0].options.title, title(compare));
-    assert.equal(f.imports[1].options.title, title(translated));
-    assert.equal(f.imports[0].options.file, `/tmp/paper_${language}_dual.pdf`);
-    assert.equal(f.imports[1].options.file, `/tmp/paper_${language}_translation.pdf`);
+    assert.equal(f.imports[0].options.title, `${expected}-dual`);
+    assert.equal(f.imports[1].options.title, `${expected}-translation`);
+    assert.equal(f.imports[0].options.file, '/tmp/paper_zh-CN_dual.pdf');
+    assert.equal(f.imports[1].options.file, '/tmp/paper_zh-CN_translation.pdf');
   }
 });
 

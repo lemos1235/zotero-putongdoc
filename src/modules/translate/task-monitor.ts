@@ -4,7 +4,6 @@ import { formatErrorDiagnostic, retryDelay } from '../../api/request';
 import { getPref } from '../../utils/prefs';
 import { updateTaskInList } from './task-manager';
 import { getString } from '../../utils/locale';
-import { getLanguageName } from '../language';
 
 const ATTR_TAG = 'PutongDoc_translated';
 const MAX_WAIT = 30 * 60 * 1000;
@@ -135,6 +134,7 @@ async function downloadTranslateResult(
       fileUrl,
       mode: kind === 'compare' ? 'dual' : 'translation',
       pdfId: task.id,
+      title: task.title?.trim() || task.filename.replace(/\.pdf$/i, ''),
       taskData,
       parentItem,
     });
@@ -155,12 +155,14 @@ async function downloadAndProcessPdf({
   fileUrl,
   mode,
   pdfId,
+  title,
   taskData,
   parentItem,
 }: {
   fileUrl: string;
-  mode: string;
+  mode: 'dual' | 'translation';
   pdfId: string;
+  title: string;
   taskData: TranslationTaskData;
   parentItem?: Zotero.Item;
 }) {
@@ -197,9 +199,7 @@ async function downloadAndProcessPdf({
       ? undefined
       : Zotero.Items.get(taskData.attachmentId).getCollections(),
     libraryID: parentItem?.libraryID,
-    title: getString(mode === 'dual' ? 'attachment-title-compare' : 'attachment-title-translated', {
-      args: { language: getLanguageName(targetLanguage, Zotero.locale) },
-    }),
+    title: `${title}-${mode}`,
     contentType: 'application/pdf',
   });
 
