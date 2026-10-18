@@ -18,12 +18,12 @@ PutongDoc 的 Zotero 插件，用于 PDF 翻译及结果附件管理。
 | -------------------- | -------------------------------------------------- |
 | 目标语言             | 默认简体中文，可选择其他语言                       |
 | 翻译模式             | 双语对照、仅译文，或同时保存两种结果；默认双语模式 |
-| PDF 解析引擎         | 内置、Mineru、智谱；默认 MinerU                    |
+| PDF 解析引擎         | 内置、MinerU、智谱；默认 MinerU                    |
 | 自动打开翻译后的 PDF | 默认开启，可取消勾选                               |
 
 ## 开始翻译
 
-1. 在 Zotero 中选中文献条目或 PDF 附件，确认 PDF 已下载到本地；也可多选。
+1. 在 Zotero 中选中一个或多个文献条目或 PDF 附件，确认 PDF 已下载到本地。
 2. 右键选择「使用 PutongDoc 翻译」。
 3. 在确认窗口检查目标语言、翻译模式和解析引擎，点击「确认」。
 4. 点击工具栏的 PutongDoc 图标，查看任务进度。
@@ -32,10 +32,12 @@ PutongDoc 的 Zotero 插件，用于 PDF 翻译及结果附件管理。
 
 ## 查看结果
 
-完成后，翻译结果会自动添加到 Zotero，作为对应文献的附件。以简体中文为例，附件标题为：
+任务完成后，翻译结果会自动添加到 Zotero，作为对应文献的附件。附件以翻译后的标题命名：
 
-- **译文（简体中文）**
-- **双语对照（简体中文）**
+- **`{标题}-translation`**：译文的 PDF
+- **`{标题}-dual`**：双语的 PDF
+
+标题由 PutongDoc 返回（例如 “Attention Is All You Need” 会变为 “注意力就是你需要的一切”）。如果没有返回标题，则使用不含 `.pdf` 扩展名的 PDF 文件名。
 
 可直接打开附件，也可在任务窗口选中任务后点击「查看翻译结果」。
 
@@ -47,8 +49,17 @@ PutongDoc 的 Zotero 插件，用于 PDF 翻译及结果附件管理。
 - **测试成功，但翻译提交失败**：测试成功不代表整个翻译流程都可用。请查看任务中的错误信息；需要反馈时，点击「复制诊断信息」，通过设置页的「反馈」链接提交问题。
 - **取消或清空队列**：只影响插件中的任务记录，不会终止网站上已经开始的翻译。
 
+## 从源码构建
+
+```sh
+npm ci
+npm run pack
+```
+
+`npm run pack` 会构建插件，并以带版本号的名称将安装包复制到 `dist/`，例如 `dist/zotero-putongdoc-0.1.0.xpi`。更多信息请参阅[开发指南](./CONTRIBUTING.md)。
+
 ## 源码来源
 
-本项目基于 [immersive-translate/zotero-immersivetranslate](https://github.com/immersive-translate/zotero-immersivetranslate) 改造，保留原项目 Git 历史，后续独立维护。
+本项目基于 [immersive-translate/zotero-immersivetranslate](https://github.com/immersive-translate/zotero-immersivetranslate)，保留了原有的 Git 历史；此后独立维护。
 
-遵循 [AGPL-3.0-or-later](./LICENSE) 许可证，原作者及贡献者的权利与声明予以保留。
+采用 [AGPL-3.0-or-later](./LICENSE) 许可。原作者及贡献者的权利与声明均予以保留。
