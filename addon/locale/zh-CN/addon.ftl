@@ -64,7 +64,6 @@ column-target-language = 目标语言
 column-translate-model = 翻译模型
 column-translate-mode = 翻译模式
 column-pdfId =  任务 ID
-column-status = 任务状态
 column-stage = 当前阶段
 column-progress = 翻译进度
 column-error = 错误信息
@@ -74,7 +73,9 @@ task-uncomplete = 任务未完成
 task-select-tip = 请选择一个任务
 task-copy-success = 复制任务 ID 成功！
 task-cancel-success = 取消任务成功
-task-cancel-tip = 只能取消未开始的任务
+task-cancel-tip = 只能取消排队中的任务
+task-cancel-running = 任务已开始处理，无法取消
+task-cancel-failed = 取消任务失败
 
 task-status-queued = 未开始
 task-status-uploading = 上传中
@@ -106,6 +107,8 @@ task-stage-completed = 翻译完成
 
 task-retry-success = 重试任务已成功加入队列
 task-retry-tip = 只能重试失败的任务
+task-retry-failed = 重试任务失败
+task-retry-uncertain = 重试结果不确定，已重新查询任务状态
 
 # Network and download related strings
 network-slow-title = 当前网络访问较慢
@@ -124,6 +127,8 @@ api-operation-upload-url = 申请上传链接
 api-operation-upload = 上传 PDF 到对象存储
 api-operation-create = 创建翻译任务
 api-operation-query = 查询翻译状态
+api-operation-cancel = 取消翻译任务
+api-operation-retry = 重试翻译任务
 api-operation-download-url = 申请下载链接
 api-operation-download = 下载 PDF
 task-debug-empty = 暂无诊断信息。请使用新版插件重新尝试；提交结果不确定的任务请先在网站核查。

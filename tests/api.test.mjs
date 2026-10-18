@@ -126,6 +126,38 @@ test('errors tolerate non-JSON, hide response details, and classify Retry-After'
   assert.equal(retryDelay(new ApiError(500, ''), 4), null);
 });
 
+test('cancel uses DELETE and retry uses POST on the documented endpoints', async () => {
+  const f = networkFixture([
+    ok({ id: 'task-id', deleted: true }),
+    ok({ id: 'task-id', status: 'queued' }),
+  ]);
+  const api = f.load('src/api/index.ts');
+  assert.equal((await api.cancelTranslateTask({ pdfId: 'task-id' })).deleted, true);
+  assert.equal((await api.retryTranslateTask({ pdfId: 'task-id' })).status, 'queued');
+  assert.equal(f.calls[0].method, 'DELETE');
+  assert.equal(f.calls[0].url, 'https://putongdoc.com/api/v1/translations/task-id');
+  assert.equal(f.calls[1].method, 'POST');
+  assert.equal(f.calls[1].url, 'https://putongdoc.com/api/v1/translations/task-id/retry');
+  assert.equal(f.calls[1].headers['Content-Type'], 'application/json');
+  assert.ok(f.calls.every((call) => call.headers.Origin === 'https://putongdoc.com'));
+  assert.ok(f.calls.every((call) => call.headers.Authorization === 'Bearer pt_test_only'));
+});
+
+test('canceling a running task surfaces error_delete_running', async () => {
+  const f = networkFixture([
+    {
+      status: 400,
+      body: JSON.stringify({ success: false, error: { key: 'error_delete_running' }, msg: 'x' }),
+    },
+  ]);
+  const { ApiError } = f.load('src/api/request.ts');
+  await assert.rejects(
+    f.load('src/api/index.ts').cancelTranslateTask({ pdfId: 'task-id' }),
+    (error) => error instanceof ApiError && error.key === 'error_delete_running',
+  );
+  assert.equal(f.calls.length, 1);
+});
+
 test('creation POST has no automatic retry on server or network failure', async () => {
   for (const reply of [{ status: 500, body: '{}' }, { networkError: true }]) {
     const f = networkFixture([reply]);

@@ -58,6 +58,19 @@ export const createTranslateTask = (data: CreateTranslation) =>
 export const getTranslateStatus = ({ pdfId }: { pdfId: string }) =>
   request<Task>(`/api/v1/translations/${encodeURIComponent(pdfId)}`);
 
+export interface TaskDeletion {
+  id: string;
+  deleted: boolean;
+}
+
+/** 取消 preparing/queued 任务或删除已结束任务；运行中的任务返回 400。 */
+export const cancelTranslateTask = ({ pdfId }: { pdfId: string }) =>
+  request<TaskDeletion>(`/api/v1/translations/${encodeURIComponent(pdfId)}`, undefined, 'DELETE');
+
+/** 仅 failed 任务可重试；会重新扣除额度并返回新的任务状态。 */
+export const retryTranslateTask = ({ pdfId }: { pdfId: string }) =>
+  request<Task>(`/api/v1/translations/${encodeURIComponent(pdfId)}/retry`, undefined, 'POST');
+
 export async function uploadPdf({ upload, file }: { upload: SignedUpload; file: Uint8Array }) {
   if (upload.method !== 'PUT')
     throw new ApiError(0, 'error_invalid_upload_method', 0, {
@@ -137,6 +150,8 @@ export default {
   getPdfUploadUrl,
   createTranslateTask,
   getTranslateStatus,
+  cancelTranslateTask,
+  retryTranslateTask,
   uploadPdf,
   downloadPdf,
 };

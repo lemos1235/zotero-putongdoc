@@ -7,6 +7,8 @@ import { Language } from '../language/types';
 import { getLanguageName } from '../language';
 import { showDialog } from '../../utils/dialog';
 import { startQueueProcessing } from './task';
+import { TranslationTaskMonitor, toLocalStatus } from './task-monitor';
+import { ApiError } from '../../api/request';
 import { ISSUES_URL } from '../../utils/const';
 import { getTaskColumns, TASK_TABLE_MIN_WIDTH } from './task-columns';
 
@@ -53,11 +55,10 @@ export async function showTaskManager() {
       .setProp('getRowData', (index) => {
         const task = addon.data.task.translationTaskList[index];
         return {
-          status: getStatusText(task.status),
           progress: task.progress == null ? '-' : `${task.progress}%`,
           parentItemTitle: task.parentItemTitle || '-',
           targetLanguage: getLanguageName(task.targetLanguage, Zotero.locale as Language) || '',
-          stage: getStageText(task.stage) || '',
+          stage: getTaskStageText(task),
           error: task.error || '-',
           resultAttachmentId: task.resultAttachmentId?.toString() || '',
         };
@@ -128,45 +129,76 @@ export async function showTaskManager() {
       }
     });
 
-    retryButton.addEventListener('click', (ev) => {
+    retryButton.addEventListener('click', async (ev) => {
       const tasks = getSelectedTasks();
-      if (tasks.length > 0) {
-        const task = tasks[0];
-        if (task.status === 'uncertain' || (!task.pdfId && task.submissionPending)) {
-          showDialog({ title: getString('api-submission-uncertain') });
-          return;
-        }
-        if (task.status === 'failed' || task.status === 'paused') {
-          // Update task status to queued
+      if (tasks.length === 0) {
+        showDialog({
+          title: getString('task-select-tip'),
+        });
+        return;
+      }
+      const task = tasks[0];
+      if (task.status === 'uncertain' || (!task.pdfId && task.submissionPending)) {
+        showDialog({ title: getString('api-submission-uncertain') });
+        return;
+      }
+      // 已失败且已提交到服务端的任务走重试接口，而不是重新上传创建任务。
+      if (task.status === 'failed' && task.pdfId) {
+        const parentItem = task.parentItemId ? Zotero.Items.get(task.parentItemId) : undefined;
+        const latest =
+          addon.data.task.translationTaskList.find(
+            (item) => item.attachmentId === task.attachmentId,
+          ) || task;
+        try {
+          const remote = await addon.api.retryTranslateTask({ pdfId: task.pdfId });
           updateTaskInList(task.attachmentId, {
-            status: 'queued',
+            status: toLocalStatus(remote.status),
+            stage: remote.status,
+            progress: remote.progress,
             error: '',
             debugInfo: '',
           });
-
-          // Add back to the global queue if not already there
-          if (
-            !addon.data.task.translationGlobalQueue.some(
-              (t) => t.attachmentId === task.attachmentId,
-            )
-          ) {
-            addon.data.task.translationGlobalQueue.unshift(task);
-          }
-
-          startQueueProcessing();
+          TranslationTaskMonitor.addTask(task.pdfId, latest, parentItem);
           refresh();
-
           showDialog({
             title: getString('task-retry-success'),
           });
-        } else {
+        } catch (error) {
+          // 超时或断连时重试可能已经生效：重新查询状态，避免误报失败。
+          const uncertain =
+            error instanceof ApiError && (error.status === 0 || error.status >= 500);
+          if (uncertain) TranslationTaskMonitor.addTask(task.pdfId!, latest, parentItem);
           showDialog({
-            title: getString('task-retry-tip'),
+            title: getString(uncertain ? 'task-retry-uncertain' : 'task-retry-failed'),
+            message: error instanceof Error ? error.message : undefined,
           });
         }
+        return;
+      }
+      if (task.status === 'failed' || task.status === 'paused') {
+        // Update task status to queued
+        updateTaskInList(task.attachmentId, {
+          status: 'queued',
+          error: '',
+          debugInfo: '',
+        });
+
+        // Add back to the global queue if not already there
+        if (
+          !addon.data.task.translationGlobalQueue.some((t) => t.attachmentId === task.attachmentId)
+        ) {
+          addon.data.task.translationGlobalQueue.unshift(task);
+        }
+
+        startQueueProcessing();
+        refresh();
+
+        showDialog({
+          title: getString('task-retry-success'),
+        });
       } else {
         showDialog({
-          title: getString('task-select-tip'),
+          title: getString('task-retry-tip'),
         });
       }
     });
@@ -201,24 +233,37 @@ export async function showTaskManager() {
         });
       }
     });
-    cancelButton.addEventListener('click', (ev) => {
+    cancelButton.addEventListener('click', async (ev) => {
       const tasks = getSelectedTasks();
-      if (tasks.length > 0) {
-        const task = tasks[0];
-        if (task.status === 'queued') {
-          cancelTask(task);
-          refresh();
-          showDialog({
-            title: getString('task-cancel-success'),
-          });
-        } else {
-          showDialog({
-            title: getString('task-cancel-tip'),
-          });
-        }
-      } else {
+      if (tasks.length === 0) {
         showDialog({
           title: getString('task-select-tip'),
+        });
+        return;
+      }
+      const task = tasks[0];
+      // 服务端仅在 preparing/queued 阶段允许取消；本地尚未提交的任务直接取消。
+      const cancelable = task.pdfId
+        ? task.stage === 'preparing' || task.stage === 'queued'
+        : task.status === 'queued';
+      if (!cancelable) {
+        showDialog({
+          title: getString('task-cancel-tip'),
+        });
+        return;
+      }
+      try {
+        if (task.pdfId) await addon.api.cancelTranslateTask({ pdfId: task.pdfId });
+        cancelTask(task);
+        refresh();
+        showDialog({
+          title: getString('task-cancel-success'),
+        });
+      } catch (error) {
+        const running = error instanceof ApiError && error.key === 'error_delete_running';
+        showDialog({
+          title: getString(running ? 'task-cancel-running' : 'task-cancel-failed'),
+          message: error instanceof Error ? error.message : undefined,
         });
       }
     });
@@ -287,10 +332,12 @@ function cancelTask(task: TranslationTaskData) {
   updateTaskInList(task.attachmentId, {
     status: 'canceled',
   });
-  addon.data.task.translationGlobalQueue.splice(
-    addon.data.task.translationGlobalQueue.findIndex((t) => t.attachmentId === task.attachmentId),
-    1,
+  const queuedIndex = addon.data.task.translationGlobalQueue.findIndex(
+    (t) => t.attachmentId === task.attachmentId,
   );
+  if (queuedIndex !== -1) addon.data.task.translationGlobalQueue.splice(queuedIndex, 1);
+  // 已提交到服务端的任务：停止轮询，避免状态被下一次轮询覆盖回 translating。
+  if (task.pdfId) TranslationTaskMonitor.removeTask(task.pdfId);
   saveTranslationData();
 }
 
@@ -369,4 +416,16 @@ function getStageText(stage?: string) {
   };
 
   return translationMap[stage] || stage;
+}
+
+/**
+ * 「当前阶段」列展示文本：本地终态/异常态优先，其余展示服务端阶段，
+ * 都没有时回退到本地任务状态（如尚未提交的排队任务）。
+ */
+function getTaskStageText(task: TranslationTaskData) {
+  const localStates: Status[] = ['failed', 'paused', 'uncertain', 'canceled'];
+  if (task.status && localStates.includes(task.status)) {
+    return getStatusText(task.status);
+  }
+  return getStageText(task.stage) || getStatusText(task.status) || '';
 }

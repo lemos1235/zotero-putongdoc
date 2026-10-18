@@ -9,9 +9,15 @@ const { getTaskColumns, TASK_TABLE_MIN_WIDTH } = load('src/modules/translate/tas
 
 test('all task columns have readable, resizable widths', () => {
   const columns = getTaskColumns();
-  assert.equal(columns.length, 6);
+  assert.equal(columns.length, 5);
   const keys = columns.map((column) => column.dataKey);
-  for (const removed of ['attachmentFilename', 'extractBackend', 'translateMode', 'pdfId']) {
+  for (const removed of [
+    'attachmentFilename',
+    'extractBackend',
+    'translateMode',
+    'pdfId',
+    'status',
+  ]) {
     assert.ok(!keys.includes(removed));
   }
   const item = columns.find((column) => column.dataKey === 'parentItemTitle');
@@ -28,19 +34,12 @@ test('all task columns have readable, resizable widths', () => {
     columns.reduce((sum, column) => sum + column.minWidth, 0),
   );
   assert.ok(columns.find((column) => column.dataKey === 'error').minWidth >= 240);
-  assert.ok(columns.find((column) => column.dataKey === 'status').minWidth >= 140);
+  assert.ok(columns.find((column) => column.dataKey === 'stage').minWidth >= 140);
 });
 
 test('task list keeps the widened title and task progress without the UUID column', () => {
   const keys = Array.from(getTaskColumns(), (column) => column.dataKey);
-  assert.deepEqual(keys, [
-    'parentItemTitle',
-    'targetLanguage',
-    'status',
-    'stage',
-    'progress',
-    'error',
-  ]);
+  assert.deepEqual(keys, ['parentItemTitle', 'targetLanguage', 'stage', 'progress', 'error']);
 });
 
 test('task viewport supports horizontal overflow rather than squeezing columns', () => {

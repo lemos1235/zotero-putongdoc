@@ -4,7 +4,7 @@ import { ApiError } from '../../api/request';
 import { getPref } from '../../utils/prefs';
 import { getString } from '../../utils/locale';
 import { updateTaskInList } from './task-manager';
-import { TranslationTaskMonitor } from './task-monitor';
+import { TranslationTaskMonitor, toLocalStatus } from './task-monitor';
 import { persistSubmissionState } from './persistence';
 import { getLanguages } from '../language';
 
@@ -81,7 +81,7 @@ export async function translatePDF(
     updateTaskInList(taskData.attachmentId, {
       pdfId: task.id,
       submissionPending: false,
-      status: 'translating',
+      status: toLocalStatus(task.status),
       stage: task.status,
       progress: task.progress,
     });

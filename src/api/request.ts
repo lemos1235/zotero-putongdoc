@@ -8,6 +8,8 @@ export type RequestOperation =
   | 'upload'
   | 'create'
   | 'query'
+  | 'cancel'
+  | 'retry'
   | 'download-url'
   | 'download';
 
@@ -203,28 +205,37 @@ export function transport(
   });
 }
 
-export async function request<T>(path: string, data?: unknown): Promise<T> {
+export async function request<T>(
+  path: string,
+  data?: unknown,
+  method: 'GET' | 'POST' | 'DELETE' = data === undefined ? 'GET' : 'POST',
+): Promise<T> {
   const url = trustedApiUrl(path);
   const token = await getApiToken();
+  const pathname = new URL(url).pathname;
   const operation: RequestOperation | undefined =
-    new URL(url).pathname === '/api/v1/me'
+    pathname === '/api/v1/me'
       ? 'quota'
-      : new URL(url).pathname === '/api/v1/languages'
+      : pathname === '/api/v1/languages'
         ? 'languages'
-        : new URL(url).pathname === '/api/v1/uploads'
+        : pathname === '/api/v1/uploads'
           ? 'upload-url'
-          : new URL(url).pathname === '/api/v1/translations'
+          : pathname === '/api/v1/translations'
             ? 'create'
-            : /^\/api\/v1\/translations\/[^/]+$/.test(new URL(url).pathname)
-              ? 'query'
-              : undefined;
+            : /^\/api\/v1\/translations\/[^/]+\/retry$/.test(pathname)
+              ? 'retry'
+              : /^\/api\/v1\/translations\/[^/]+$/.test(pathname)
+                ? method === 'DELETE'
+                  ? 'cancel'
+                  : 'query'
+                : undefined;
   const response = await transport(
-    data === undefined ? 'GET' : 'POST',
+    method,
     url,
     {
       Authorization: `Bearer ${token}`,
       Origin: BASE_URL,
-      ...(data === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
     },
     data === undefined ? undefined : JSON.stringify(data),
     false,

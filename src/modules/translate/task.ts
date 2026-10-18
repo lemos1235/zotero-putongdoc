@@ -288,10 +288,7 @@ async function processNextItem() {
       ztoolkit.log(
         `恢复已有pdfId(${taskData.pdfId})的任务: ${taskData.attachmentFilename}，直接进入监控阶段`,
       );
-      updateTaskInList(taskData.attachmentId, {
-        status: 'translating',
-      });
-      // 直接启动监控任务
+      // 本地状态由首次轮询按服务端返回更新，避免排队中的任务短暂显示为翻译中
       TranslationTaskMonitor.addTask(taskData.pdfId, taskData, parentItem);
     } else if (taskData.submissionPending || taskData.status === 'uncertain') {
       updateTaskInList(taskData.attachmentId, {

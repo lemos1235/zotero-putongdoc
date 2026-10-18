@@ -129,14 +129,7 @@ const remote = (status, progress = null, files = {}, title = null) => ({
 });
 
 test('intermediate stages including archiving and progress=100 are not failures or completion', async () => {
-  for (const status of [
-    'preparing',
-    'queued',
-    'extracting',
-    'translating',
-    'rendering',
-    'archiving',
-  ]) {
+  for (const status of ['preparing', 'extracting', 'translating', 'rendering', 'archiving']) {
     const f = fixture();
     f.api.getTranslateStatus = async () => remote(status, 100);
     const monitor = f.load('src/modules/translate/task-monitor.ts').TranslationTaskMonitor;
@@ -148,6 +141,18 @@ test('intermediate stages including archiving and progress=100 are not failures 
     assert.equal(f.updates.at(-1).status, 'translating');
     assert.equal(f.updates.at(-1).stage, status);
   }
+});
+
+test('server-queued task stays cancellable instead of showing as translating', async () => {
+  const f = fixture();
+  f.api.getTranslateStatus = async () => remote('queued', 0);
+  const monitor = f.load('src/modules/translate/task-monitor.ts').TranslationTaskMonitor;
+  const entry = f.monitorEntry();
+  monitor.activeTasks.set('task-id', entry);
+  await monitor.checkTaskProgress('task-id', entry);
+  assert.equal(monitor.activeTasks.size, 1);
+  assert.equal(f.updates.at(-1).status, 'queued');
+  assert.equal(f.updates.at(-1).stage, 'queued');
 });
 
 test('completed with unavailable files keeps waiting', async () => {

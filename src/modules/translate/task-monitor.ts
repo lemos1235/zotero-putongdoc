@@ -1,5 +1,5 @@
-import type { TranslationTaskData } from '../../types';
-import type { Task } from '../../api';
+import type { Status, TranslationTaskData } from '../../types';
+import type { Task, TaskStatus } from '../../api';
 import { formatErrorDiagnostic, retryDelay } from '../../api/request';
 import { getPref } from '../../utils/prefs';
 import { updateTaskInList } from './task-manager';
@@ -7,6 +7,23 @@ import { getString } from '../../utils/locale';
 
 const ATTR_TAG = 'PutongDoc_translated';
 const MAX_WAIT = 30 * 60 * 1000;
+
+/**
+ * 服务端任务状态 → 本地任务状态。
+ * 服务端排队中的任务记为 queued（未开始），以便用户取消。
+ */
+export function toLocalStatus(status: TaskStatus): Status {
+  switch (status) {
+    case 'queued':
+      return 'queued';
+    case 'completed':
+      return 'success';
+    case 'failed':
+      return 'failed';
+    default:
+      return 'translating';
+  }
+}
 
 type MonitoredTask = {
   taskData: TranslationTaskData;
@@ -62,13 +79,17 @@ export const TranslationTaskMonitor = {
     this.activeTasks.delete(pdfId);
   },
 
+  removeTask(pdfId: string) {
+    this.activeTasks.delete(pdfId);
+  },
+
   async checkTaskProgress(pdfId: string, entry: MonitoredTask) {
     const { taskData, parentItem } = entry;
     try {
       const task = await addon.api.getTranslateStatus({ pdfId });
       if (!addon.data.alive || !this.activeTasks.has(pdfId)) return;
       updateTaskInList(taskData.attachmentId, {
-        status: 'translating',
+        status: toLocalStatus(task.status),
         stage: task.status,
         progress: task.progress,
         error: '',

@@ -64,7 +64,6 @@ column-target-language = Target Language
 column-translate-model = Translation Model
 column-translate-mode = Translation Mode
 column-pdfId =  Task ID
-column-status = Task Status
 column-stage = Current Stage
 column-progress = Translate Progress
 column-error = Error Message
@@ -73,7 +72,9 @@ task-uncomplete = Task not completed
 task-select-tip = Please select a task
 task-copy-success = Task ID Copied!
 task-cancel-success = Task canceled successfully
-task-cancel-tip = Only unstarted tasks can be canceled
+task-cancel-tip = Only queued tasks can be canceled
+task-cancel-running = The task has started processing and cannot be canceled
+task-cancel-failed = Failed to cancel the task
 
 task-status-queued = Pending start
 task-status-uploading = Uploading
@@ -105,6 +106,8 @@ task-stage-completed = Translate completed
 
 task-retry-success = Task retry queued successfully
 task-retry-tip = Only failed tasks can be retried
+task-retry-failed = Failed to retry the task
+task-retry-uncertain = Retry result is uncertain; the task status will be queried again
 
 # Network and download related strings
 network-slow-title = Slow Network Access
@@ -123,6 +126,8 @@ api-operation-upload-url = Request upload URL
 api-operation-upload = Upload PDF to storage
 api-operation-create = Create translation task
 api-operation-query = Query translation status
+api-operation-cancel = Cancel translation task
+api-operation-retry = Retry translation task
 api-operation-download-url = Request download URL
 api-operation-download = Download PDF
 task-debug-empty = No diagnostic information available. Try with the updated plugin; check uncertain submissions on the website first.

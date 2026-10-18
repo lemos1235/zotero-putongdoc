@@ -9,8 +9,7 @@ const taskColumns = [
     minWidth: 100,
     flex: 0,
   },
-  { dataKey: 'status', label: 'column-status', width: 150, minWidth: 140, flex: 0 },
-  { dataKey: 'stage', label: 'column-stage', width: 130, minWidth: 110, flex: 0 },
+  { dataKey: 'stage', label: 'column-stage', width: 160, minWidth: 140, flex: 0 },
   { dataKey: 'progress', label: 'column-progress', width: 90, minWidth: 90, flex: 0 },
   { dataKey: 'error', label: 'column-error', width: 300, minWidth: 240, flex: 3 },
 ];
