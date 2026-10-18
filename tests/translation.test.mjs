@@ -73,7 +73,7 @@ function fixture(interfaceLanguage = 'zh-CN') {
             .find((line) => line.startsWith(`${key} = `))
             ?.slice(key.length + 3);
           assert.ok(pattern, `Missing title string: ${key}`);
-          return pattern.replace('{ $language }', options.args.language);
+          return pattern.replace('{ $title }', options.args.title);
         },
       },
       'src/utils/prefs.ts': { getPref: (key) => preferences[key] },
@@ -204,27 +204,32 @@ test('download is awaited and both kinds are imported only once across retries',
 });
 
 test('result attachments use the task title, falling back to the filename', async () => {
-  for (const [title, expected] of [
-    ['Attention Is All You Need', 'Attention Is All You Need'],
-    ['  Trimmed Title  ', 'Trimmed Title'],
-    [null, 'paper'],
-    ['', 'paper'],
+  for (const [locale, compareSuffix, translatedSuffix] of [
+    ['zh-CN', '（双语对照）', '（译文）'],
+    ['en-US', ' (Bilingual)', ' (Translation)'],
   ]) {
-    const f = fixture();
-    f.taskData.translateMode = 'all';
-    f.api.getTranslateStatus = async () =>
-      remote('completed', 100, { compare: '/compare', translated: '/translated' }, title);
-    f.api.downloadPdf = async () => new Uint8Array([37, 80, 68, 70]).buffer;
-    const monitor = f.load('src/modules/translate/task-monitor.ts').TranslationTaskMonitor;
-    const entry = f.monitorEntry();
-    monitor.activeTasks.set('task-id', entry);
-    await monitor.checkTaskProgress('task-id', entry);
-    assert.equal(f.updates.at(-1).status, 'success');
-    assert.equal(f.imports.length, 2);
-    assert.equal(f.imports[0].options.title, `${expected}-dual`);
-    assert.equal(f.imports[1].options.title, `${expected}-translation`);
-    assert.equal(f.imports[0].options.file, '/tmp/paper_zh-CN_dual.pdf');
-    assert.equal(f.imports[1].options.file, '/tmp/paper_zh-CN_translation.pdf');
+    for (const [title, expected] of [
+      ['Attention Is All You Need', 'Attention Is All You Need'],
+      ['  Trimmed Title  ', 'Trimmed Title'],
+      [null, 'paper'],
+      ['', 'paper'],
+    ]) {
+      const f = fixture(locale);
+      f.taskData.translateMode = 'all';
+      f.api.getTranslateStatus = async () =>
+        remote('completed', 100, { compare: '/compare', translated: '/translated' }, title);
+      f.api.downloadPdf = async () => new Uint8Array([37, 80, 68, 70]).buffer;
+      const monitor = f.load('src/modules/translate/task-monitor.ts').TranslationTaskMonitor;
+      const entry = f.monitorEntry();
+      monitor.activeTasks.set('task-id', entry);
+      await monitor.checkTaskProgress('task-id', entry);
+      assert.equal(f.updates.at(-1).status, 'success');
+      assert.equal(f.imports.length, 2);
+      assert.equal(f.imports[0].options.title, `${expected}${compareSuffix}`);
+      assert.equal(f.imports[1].options.title, `${expected}${translatedSuffix}`);
+      assert.equal(f.imports[0].options.file, '/tmp/paper_zh-CN_dual.pdf');
+      assert.equal(f.imports[1].options.file, '/tmp/paper_zh-CN_translation.pdf');
+    }
   }
 });
 

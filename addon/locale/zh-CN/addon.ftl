@@ -13,6 +13,9 @@ translateMode-all = 双语模式 & 译文模式
 translateMode-dua = 双语模式
 translateMode-translation = 仅译文
 
+attachment-title-compare = { $title }（双语对照）
+attachment-title-translated = { $title }（译文）
+
 translateModel-qwen = Qwen
 translateModel-kimi-qwen = Kimi + Qwen(限时测试)
 translateModel-kimi-deepseek = Kimi + DeepSeek(限时测试)

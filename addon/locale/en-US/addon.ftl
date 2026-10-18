@@ -13,6 +13,9 @@ translateMode-all = Bilingual mode & Translation only
 translateMode-dua = Bilingual mode
 translateMode-translation = Translation only
 
+attachment-title-compare = { $title } (Bilingual)
+attachment-title-translated = { $title } (Translation)
+
 translateModel-qwen = Qwen
 translateModel-kimi-qwen = Kimi + Qwen(Limited Test)
 translateModel-kimi-deepseek = Kimi + DeepSeek(Limited Test)

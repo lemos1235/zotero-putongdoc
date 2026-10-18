@@ -134,7 +134,10 @@ async function downloadTranslateResult(
       fileUrl,
       mode: kind === 'compare' ? 'dual' : 'translation',
       pdfId: task.id,
-      title: task.title?.trim() || task.filename.replace(/\.pdf$/i, ''),
+      title: getString(
+        kind === 'compare' ? 'attachment-title-compare' : 'attachment-title-translated',
+        { args: { title: task.title?.trim() || task.filename.replace(/\.pdf$/i, '') } },
+      ),
       taskData,
       parentItem,
     });
@@ -199,7 +202,7 @@ async function downloadAndProcessPdf({
       ? undefined
       : Zotero.Items.get(taskData.attachmentId).getCollections(),
     libraryID: parentItem?.libraryID,
-    title: `${title}-${mode}`,
+    title,
     contentType: 'application/pdf',
   });
 
