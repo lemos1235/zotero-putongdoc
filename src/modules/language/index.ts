@@ -1,5 +1,5 @@
-import { Language } from "./types";
-import { langMap, nativeLangMap, zhCNLangMap, zhTWLangMap } from "./config";
+import { Language } from './types';
+import { langMap, nativeLangMap, zhCNLangMap, zhTWLangMap } from './config';
 
 export const getLanguages: () => Language[] = () => {
   return Object.keys(langMap) as Language[];
@@ -23,8 +23,8 @@ export function getLanguageName(lang: Language, interfaceLanguage: Language) {
   const zhLang = zhCNLangMap[lang];
   const zhTWLang = zhTWLangMap[lang];
   const internalNames: Record<string, string> = {
-    "zh-CN": zhLang,
-    "zh-TW": zhTWLang,
+    'zh-CN': zhLang,
+    'zh-TW': zhTWLang,
     en: fallbackLang,
   };
 
@@ -37,4 +37,4 @@ export function getLanguageName(lang: Language, interfaceLanguage: Language) {
   return `${locale} (${nativeLang})`;
 }
 
-export { langMap, nativeLangMap, zhCNLangMap, zhTWLangMap } from "./config";
+export { langMap, nativeLangMap, zhCNLangMap, zhTWLangMap } from './config';

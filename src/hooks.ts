@@ -1,49 +1,40 @@
-import { getString, initLocale } from "./utils/locale";
-import {
-  registerPrefs,
-  registerPrefsScripts,
-} from "./modules/preference-window";
-import { registerShortcuts } from "./modules/shortcuts";
-import { createZToolkit } from "./utils/ztoolkit";
-import { registerMenu, registerWindowMenu } from "./modules/menu";
-import { registerToolbar } from "./modules/toolbar";
-import { registerNotifier } from "./modules/notify";
+import { getString, initLocale } from './utils/locale';
+import { registerPrefs, registerPrefsScripts } from './modules/preference-window';
+import { registerShortcuts } from './modules/shortcuts';
+import { createZToolkit } from './utils/ztoolkit';
+import { registerMenu, registerWindowMenu } from './modules/menu';
+import { registerToolbar } from './modules/toolbar';
+import { registerNotifier } from './modules/notify';
 import {
   addTasksToQueue,
   addTasksToQueueByIds,
   startQueueProcessing,
   shouldSkipAttachment,
-} from "./modules/translate/task";
+} from './modules/translate/task';
 import {
   loadSavedTranslationData,
   restoreUnfinishedTasks,
   saveTranslationData,
-} from "./modules/translate/persistence";
-import { showTaskManager } from "./modules/translate/task-manager";
-import { initTasks } from "./modules/translate/store";
-import { getPref } from "./utils/prefs";
-import { removeKnownMenuElements } from "./utils/menu";
+} from './modules/translate/persistence';
+import { showTaskManager } from './modules/translate/task-manager';
+import { initTasks } from './modules/translate/store';
+import { getPref } from './utils/prefs';
+import { removeKnownMenuElements } from './utils/menu';
 
 async function onStartup() {
-  await Promise.all([
-    Zotero.initializationPromise,
-    Zotero.unlockPromise,
-    Zotero.uiReadyPromise,
-  ]);
+  await Promise.all([Zotero.initializationPromise, Zotero.unlockPromise, Zotero.uiReadyPromise]);
 
   initLocale();
 
   registerPrefs();
 
-  registerNotifier(["item", "file"]);
+  registerNotifier(['item', 'file']);
 
   registerShortcuts();
 
   initTasks();
 
-  await Promise.all(
-    Zotero.getMainWindows().map((win) => onMainWindowLoad(win)),
-  );
+  await Promise.all(Zotero.getMainWindows().map((win) => onMainWindowLoad(win)));
 
   // 加载保存的翻译任务和队列数据
   loadSavedTranslationData();
@@ -63,17 +54,15 @@ async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
   addon.data.ztoolkit = createZToolkit();
   ztoolkit.basicOptions.log.disableConsole = false;
   // @ts-ignore This is a moz feature
-  win.MozXULElement.insertFTLIfNeeded(
-    `${addon.data.config.addonRef}-mainWindow.ftl`,
-  );
+  win.MozXULElement.insertFTLIfNeeded(`${addon.data.config.addonRef}-mainWindow.ftl`);
 
   const popupWin = new ztoolkit.ProgressWindow(addon.data.config.addonName, {
     closeOnClick: true,
     closeTime: -1,
   })
     .createLine({
-      text: getString("startup-begin"),
-      type: "default",
+      text: getString('startup-begin'),
+      type: 'default',
       progress: 0,
     })
     .show();
@@ -81,7 +70,7 @@ async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
   await Zotero.Promise.delay(1000);
   popupWin.changeLine({
     progress: 30,
-    text: `[30%] ${getString("startup-begin")}`,
+    text: `[30%] ${getString('startup-begin')}`,
   });
 
   registerMenu(win.document);
@@ -94,7 +83,7 @@ async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
 
   popupWin.changeLine({
     progress: 100,
-    text: `[100%] ${getString("startup-finish")}`,
+    text: `[100%] ${getString('startup-finish')}`,
   });
   popupWin.startCloseTimer(5000);
 }
@@ -127,13 +116,13 @@ async function onNotify(
   ids: Array<string | number>,
   extraData: { [key: string]: any },
 ) {
-  ztoolkit.log("notify", event, type, ids, extraData);
-  const isAutoTranslateEnabled = getPref("autoTranslate");
-  ztoolkit.log("isAutoTranslateEnabled", isAutoTranslateEnabled);
+  ztoolkit.log('notify', event, type, ids, extraData);
+  const isAutoTranslateEnabled = getPref('autoTranslate');
+  ztoolkit.log('isAutoTranslateEnabled', isAutoTranslateEnabled);
   if (!isAutoTranslateEnabled) {
     return;
   }
-  if (event === "add" && type === "item") {
+  if (event === 'add' && type === 'item') {
     const newIds = [];
     for (const id of ids) {
       const item = Zotero.Items.get(id);
@@ -141,32 +130,29 @@ async function onNotify(
 
       if (item.isRegularItem()) {
         // ✅ 情况①：解析成功，生成新条目（主条目）
-        ztoolkit.log("【情况①】创建了主条目:", item.getField("title"));
+        ztoolkit.log('【情况①】创建了主条目:', item.getField('title'));
         newIds.push(item.id);
       } else if (isPDFAttachment) {
         const parentID = item.parentID;
-        ztoolkit.log("item.attachmentFilename", item.attachmentFilename);
+        ztoolkit.log('item.attachmentFilename', item.attachmentFilename);
         const shouldSkip = shouldSkipAttachment(item);
         if (shouldSkip) {
-          ztoolkit.log("【情况④】跳过翻译结果附件:", item.attachmentFilename);
+          ztoolkit.log('【情况④】跳过翻译结果附件:', item.attachmentFilename);
           continue;
         }
         if (parentID) {
           // 📎 情况③：添加到已有条目下的附件
           ztoolkit.log(
-            "【情况③】添加附件到已有条目:",
+            '【情况③】添加附件到已有条目:',
             item.attachmentFilename,
-            "，父项ID:",
+            '，父项ID:',
             parentID,
           );
           //
           newIds.push(item.id);
         } else {
           // ❌ 情况②：无法识别，仅上传为独立附件
-          ztoolkit.log(
-            "【情况②】独立附件（无法识别的PDF）暂不支持:",
-            item.attachmentFilename,
-          );
+          ztoolkit.log('【情况②】独立附件（无法识别的PDF）暂不支持:', item.attachmentFilename);
         }
       }
     }
@@ -184,7 +170,7 @@ async function onNotify(
  */
 async function onPrefsEvent(type: string, data: { [key: string]: any }) {
   switch (type) {
-    case "load":
+    case 'load':
       registerPrefsScripts(data.window);
       break;
     default:
@@ -193,14 +179,14 @@ async function onPrefsEvent(type: string, data: { [key: string]: any }) {
 }
 
 function onShortcuts(type: string) {
-  if (!getPref("enableShortcuts")) {
+  if (!getPref('enableShortcuts')) {
     return;
   }
   switch (type) {
-    case "translate":
+    case 'translate':
       addTasksToQueue();
       break;
-    case "showTaskManager":
+    case 'showTaskManager':
       showTaskManager();
       break;
     default:

@@ -1,15 +1,16 @@
 startup-begin = 插件加载中
 startup-finish = 插件已就绪
-menuitem-translate = 使用沉浸式翻译(Ctrl/Cmd+Shift+B)
-menuView-tasks = 查看沉浸式翻译任务(Ctrl/Cmd+Shift+H)
+menuitem-translate = 使用 PutongDoc 翻译(Ctrl/Cmd+Shift+B)
+menuView-tasks = 查看 PutongDoc 翻译任务(Ctrl/Cmd+Shift+H)
 pref-test-success = 测试成功
 pref-test-failed = 测试失败
-pref-test-failed-description = 请检查授权码是否正确
+pref-test-failed-description = 请检查 API 令牌是否正确
+service-not-configured = PutongDoc API 尚未接入，令牌测试与翻译暂不可用。
 pref-shortcut-duplicate-error = 该快捷键已被另一个插件动作使用。插件快捷键不能重复。
 pref-shortcut-native-conflict-error = Shift+字母 是 Zotero 条目列表原生跳转功能，不能作为插件快捷键。
 pref-shortcut-conflict-guidance = 自定义快捷键可能与 Zotero 或系统快捷键冲突。插件不会因此阻止保存，但 Zotero 或系统可能会优先处理。
 
-prefs-title = 沉浸式翻译
+prefs-title = PutongDoc
 item-filed-status = 翻译状态
 
 translateMode-all = 双语模式 & 译文模式
@@ -111,6 +112,6 @@ task-retry-tip = 只能重试失败的任务
 
 # Network and download related strings
 network-slow-title = 当前网络访问较慢
-network-slow-message = 若您身处中国大陆，可以联系客服迁移至沉浸式翻译极速版并生成授权码，以获得更稳定的 Zotero 插件体验。
+network-slow-message = 下载较慢，请检查网络连接后重试。
 network-slow-dont-remind = 不再提醒
 download-failed = 下载失败

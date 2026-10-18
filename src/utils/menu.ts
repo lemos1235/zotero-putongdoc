@@ -1,7 +1,7 @@
 export const MENU_IDS = {
-  itemTranslate: "zotero-itemmenu-babeldoc-translate",
-  viewSeparator: "zotero-menuview-babeldoc-translate-separator",
-  viewTasks: "zotero-menuview-babeldoc-translate-menuitem",
+  itemTranslate: 'zotero-itemmenu-putongdoc-translate',
+  viewSeparator: 'zotero-menuview-putongdoc-translate-separator',
+  viewTasks: 'zotero-menuview-putongdoc-translate-menuitem',
 } as const;
 
 export function removeMenuElement(doc: Document, id: string): void {

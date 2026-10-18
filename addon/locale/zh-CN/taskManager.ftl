@@ -1,4 +1,4 @@
-taskManager-title = 沉浸式翻译任务
+taskManager-title = PutongDoc 翻译任务
 refresh = 
     .label = 刷新
     .tooltiptext = 刷新翻译任务列表
@@ -19,4 +19,4 @@ feedback =
     .tooltiptext = 反馈当前任务的问题
 clearQueue =
     .label = 清空队列
-    .tooltiptext = 清空队列中的任务，注意这只是在 Zotero 插件中清除，实际可能还在翻译，可以在 BabelDOC 网页中查看
+    .tooltiptext = 清除本地队列中的任务，不会终止服务端已开始的翻译任务

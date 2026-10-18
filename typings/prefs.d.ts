@@ -20,12 +20,10 @@ declare namespace _ZoteroTypes {
       "primaryFontFamily": string;
       "dualMode": string;
       "customSystemPrompt": string;
-      "fakeUserId": string;
       "enableShortcuts": boolean;
       "shortcutTranslate": string;
       "shortcutTaskManager": string;
       "layoutModel": string;
-      "skipNetworkWarning": boolean;
     };
   }
 }

@@ -1,0 +1,11 @@
+Zotero PutongDoc is derived from:
+https://github.com/immersive-translate/zotero-immersivetranslate
+
+Original author: immersive-translate and upstream contributors.
+Original project name: Zotero Immersive Translate plugin.
+
+The original Git history and AGPL-3.0-or-later license are retained.
+Original authors' copyright and license notices remain applicable.
+This independently maintained version changes plugin identity and branding,
+removes upstream telemetry, and disables network APIs pending PutongDoc integration.
+It is not an official release of the upstream project.

@@ -1,11 +1,11 @@
-import { config } from "../../../package.json";
-import { TranslationTaskData } from "../../types";
+import { config } from '../../../package.json';
+import { TranslationTaskData } from '../../types';
 
 function initTasks() {
   addon.data.task.data = new ztoolkit.LargePrefObject(
     `${config.prefsPrefix}.taskKeys`,
     `${config.prefsPrefix}.task.`,
-    "parser",
+    'parser',
   );
 }
 
@@ -25,7 +25,7 @@ function setTaskKeys(taskKeys: string[]): void {
 }
 
 function getTaskText(keyName: string): string {
-  return addon.data.task.data?.getValue(keyName) || "";
+  return addon.data.task.data?.getValue(keyName) || '';
 }
 
 function setTask(task: TranslationTaskData): void {

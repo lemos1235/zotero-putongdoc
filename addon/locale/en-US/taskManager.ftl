@@ -1,4 +1,4 @@
-taskManager-title = Immersive Translation Tasks
+taskManager-title = PutongDoc Translation Tasks
 refresh = 
     .label = Refresh
     .tooltiptext = Refresh translation task list
@@ -19,4 +19,4 @@ feedback =
     .tooltiptext = Feedback current task issue
 clearQueue =
     .label = Clear Queue
-    .tooltiptext = Clear all tasks in the queue
+    .tooltiptext = Clear the local queue without stopping tasks already started on the server

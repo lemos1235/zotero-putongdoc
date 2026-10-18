@@ -1,5 +1,5 @@
-import { setTask, clearTasks, getTaskKeys, getTaskText } from "./store";
-import type { TranslationTaskData } from "../../types";
+import { setTask, clearTasks, getTaskKeys, getTaskText } from './store';
+import type { TranslationTaskData } from '../../types';
 
 /**
  * 加载已保存的翻译任务数据
@@ -22,13 +22,10 @@ export function loadSavedTranslationData() {
 
       // 将去重后的数据赋值给全局变量
       addon.data.task.translationTaskList = dedupedTasks;
-      ztoolkit.log(
-        "已加载保存的翻译任务列表",
-        addon.data.task.translationTaskList,
-      );
+      ztoolkit.log('已加载保存的翻译任务列表', addon.data.task.translationTaskList);
     }
   } catch (error) {
-    ztoolkit.log("加载保存的翻译数据时出错", error);
+    ztoolkit.log('加载保存的翻译数据时出错', error);
     // 如果出错，使用空数组初始化
     addon.data.task.translationTaskList = [];
   }
@@ -74,23 +71,17 @@ export function restoreUnfinishedTasks(): number {
     addon.data.task.translationGlobalQueue = [];
 
     // 找出状态不是success或failed的任务
-    const unfinishedTasks = addon.data.task.translationTaskList.filter(
-      (task: any) => {
-        const status = task.status || "";
-        return (
-          status !== "success" && status !== "failed" && status !== "canceled"
-        );
-      },
-    );
+    const unfinishedTasks = addon.data.task.translationTaskList.filter((task: any) => {
+      const status = task.status || '';
+      return status !== 'success' && status !== 'failed' && status !== 'canceled';
+    });
 
     if (unfinishedTasks.length === 0) {
-      ztoolkit.log("没有未完成的翻译任务需要恢复");
+      ztoolkit.log('没有未完成的翻译任务需要恢复');
       return 0;
     }
 
-    ztoolkit.log(
-      `找到${unfinishedTasks.length}个未完成的翻译任务，开始检查是否可恢复`,
-    );
+    ztoolkit.log(`找到${unfinishedTasks.length}个未完成的翻译任务，开始检查是否可恢复`);
 
     // 检查附件是否仍然存在
     let numRestored = 0;
@@ -101,9 +92,7 @@ export function restoreUnfinishedTasks(): number {
         const attachment = Zotero.Items.get(attachmentId);
 
         if (!attachment || !attachment.isAttachment()) {
-          ztoolkit.log(
-            `附件ID ${attachmentId} (${task.attachmentFilename}) 已不存在，跳过恢复`,
-          );
+          ztoolkit.log(`附件ID ${attachmentId} (${task.attachmentFilename}) 已不存在，跳过恢复`);
           continue;
         }
 
@@ -111,23 +100,20 @@ export function restoreUnfinishedTasks(): number {
           (t: any) => t.attachmentId === attachmentId,
         );
         if (isInQueue) {
-          ztoolkit.log("任务已存在于队列中，跳过恢复");
+          ztoolkit.log('任务已存在于队列中，跳过恢复');
           continue;
         } else {
           addon.data.task.translationGlobalQueue.push(task);
           numRestored++;
         }
       } catch (error) {
-        ztoolkit.log(
-          `检查附件ID ${attachmentId} 是否存在时出错，跳过恢复`,
-          error,
-        );
+        ztoolkit.log(`检查附件ID ${attachmentId} 是否存在时出错，跳过恢复`, error);
       }
     }
     ztoolkit.log(`已恢复${numRestored}个未完成任务`);
     return numRestored;
   } catch (error) {
-    ztoolkit.log("恢复未完成任务时出错", error);
+    ztoolkit.log('恢复未完成任务时出错', error);
     return 0;
   }
 }
@@ -139,20 +125,15 @@ export function saveTranslationData() {
   clearTasks();
   try {
     // 保存翻译任务列表
-    if (
-      addon.data.task.translationTaskList &&
-      addon.data.task.translationTaskList.length > 0
-    ) {
+    if (addon.data.task.translationTaskList && addon.data.task.translationTaskList.length > 0) {
       addon.data.task.translationTaskList
         .filter(
           (task: any) =>
-            task.status !== "success" &&
-            task.status !== "failed" &&
-            task.status !== "canceled",
+            task.status !== 'success' && task.status !== 'failed' && task.status !== 'canceled',
         )
         .forEach((task: TranslationTaskData) => setTask(task));
     }
   } catch (error) {
-    ztoolkit.log("保存翻译数据时出错", error);
+    ztoolkit.log('保存翻译数据时出错', error);
   }
 }

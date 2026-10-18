@@ -18,8 +18,7 @@
   windowtype="__addonRef__-taskManager"
   sizemode="normal"
   scrolling="false"
-  persist="screenX screenY width height sizemode"
->
+  persist="screenX screenY width height sizemode">
   <head>
     <title data-l10n-id="taskManager-title"></title>
     <meta charset="utf-8" />
@@ -39,15 +38,11 @@
         data-l10n-id="close-shortcut"
         command="cmd_close"
         modifiers="accel"
-        reserved="true"
-      />
+        reserved="true" />
     </xul:keyset>
     <script>
-      document.addEventListener("DOMContentLoaded", (ev) => {
-        Services.scriptloader.loadSubScript(
-          "chrome://zotero/content/include.js",
-          this,
-        );
+      document.addEventListener('DOMContentLoaded', (ev) => {
+        Services.scriptloader.loadSubScript('chrome://zotero/content/include.js', this);
         window.arguments[0]._initPromise.resolve();
       });
     </script>
@@ -104,8 +99,7 @@
     <div
       class="footer-container"
       style="justify-content: flex-start; padding: 10px; gap: 8px"
-      xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
-    >
+      xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
       <button id="refresh" data-l10n-id="refresh"></button>
       <button id="cancel" data-l10n-id="cancel"></button>
       <button id="copy-pdf-id" data-l10n-id="copy-pdf-id"></button>

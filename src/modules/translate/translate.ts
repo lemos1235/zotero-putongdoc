@@ -1,7 +1,7 @@
-import type { TranslationTaskData } from "../../types";
-import { getPref } from "../../utils/prefs";
-import { updateTaskInList } from "./task-manager";
-import { TranslationTaskMonitor } from "./task-monitor";
+import type { TranslationTaskData } from '../../types';
+import { getPref } from '../../utils/prefs';
+import { updateTaskInList } from './task-manager';
+import { TranslationTaskMonitor } from './task-monitor';
 
 export async function translatePDF(
   taskData: TranslationTaskData,
@@ -9,8 +9,8 @@ export async function translatePDF(
 ): Promise<void> {
   // Update task status in taskList
   updateTaskInList(taskData.attachmentId, {
-    status: "uploading",
-    stage: "uploading",
+    status: 'uploading',
+    stage: 'uploading',
     progress: 0,
   });
 
@@ -31,24 +31,22 @@ export async function translatePDF(
     fileName: taskData.attachmentFilename,
     targetLanguage: taskData.targetLanguage,
     requestModel: taskData.translateModel,
-    enhance_compatibility: getPref("enhanceCompatibility"),
-    OCRWorkaround: getPref("ocrWorkaround") === "true" ? true : false,
-    autoEnableOcrWorkAround: getPref("ocrWorkaround") === "auto",
-    autoExtractGlossary: getPref("autoExtractGlossary"),
-    disable_rich_text_translate: !getPref("richTextTranslate"),
-    primaryFontFamily: getPref("primaryFontFamily"),
-    dual_mode: getPref("dualMode"),
-    customSystemPrompt: getPref("customSystemPrompt") || null,
-    layout_model_id: getPref("layoutModel") || "version_3",
+    enhance_compatibility: getPref('enhanceCompatibility'),
+    OCRWorkaround: getPref('ocrWorkaround') === 'true' ? true : false,
+    autoEnableOcrWorkAround: getPref('ocrWorkaround') === 'auto',
+    autoExtractGlossary: getPref('autoExtractGlossary'),
+    disable_rich_text_translate: !getPref('richTextTranslate'),
+    primaryFontFamily: getPref('primaryFontFamily'),
+    dual_mode: getPref('dualMode'),
+    customSystemPrompt: getPref('customSystemPrompt') || null,
+    layout_model_id: getPref('layoutModel') || 'version_3',
   });
 
-  ztoolkit.log(
-    `Translation task created for ${taskData.attachmentFilename}. PDF ID: ${pdfId}`,
-  );
+  ztoolkit.log(`Translation task created for ${taskData.attachmentFilename}. PDF ID: ${pdfId}`);
   // Update taskData with pdfId for the monitoring task
   updateTaskInList(taskData.attachmentId, {
-    status: "translating",
-    stage: "queued",
+    status: 'translating',
+    stage: 'queued',
     progress: 0,
     pdfId: pdfId,
   });
@@ -56,9 +54,7 @@ export async function translatePDF(
   // Add task to centralized monitor instead of launching a separate monitoring process
   TranslationTaskMonitor.addTask(pdfId, taskData, parentItem);
 
-  ztoolkit.log(
-    `Task added to background monitor: ${pdfId} (${taskData.attachmentFilename}).`,
-  );
+  ztoolkit.log(`Task added to background monitor: ${pdfId} (${taskData.attachmentFilename}).`);
 }
 
 // Renamed and refactored to upload a single file
@@ -72,18 +68,15 @@ async function uploadAttachmentFile(
   try {
     const uploadInfo = await addon.api.getPdfUploadUrl();
     if (!attachmentPath)
-      throw new Error(
-        `File path is missing for attachment ${attachmentFilename}`,
-      );
+      throw new Error(`File path is missing for attachment ${attachmentFilename}`);
     const fileContents = await IOUtils.read(attachmentPath); // Read the specific path
-    if (!fileContents)
-      throw new Error(`Failed to read file contents for ${attachmentFilename}`);
+    if (!fileContents) throw new Error(`Failed to read file contents for ${attachmentFilename}`);
 
-    if (typeof File === "undefined") {
-      throw new Error("File constructor not available in this environment.");
+    if (typeof File === 'undefined') {
+      throw new Error('File constructor not available in this environment.');
     }
     const file = new File([fileContents], attachmentFilename, {
-      type: "application/pdf",
+      type: 'application/pdf',
     });
 
     await addon.api.uploadPdf({
@@ -93,10 +86,7 @@ async function uploadAttachmentFile(
     ztoolkit.log(`Successfully uploaded ${attachmentFilename}`);
     return uploadInfo; // Return the info for the uploaded file
   } catch (error: any) {
-    ztoolkit.log(
-      `ERROR: Upload failed for ${attachmentFilename}:`,
-      error.message || error,
-    );
+    ztoolkit.log(`ERROR: Upload failed for ${attachmentFilename}:`, error.message || error);
     throw error; // Re-throw to be caught by handleSingleItemTranslation -> processNextItem
   }
 }

@@ -11,7 +11,7 @@ pref-enable-richTextTranslate =
     .label = 富文本翻译
 pref-enable-ocr-workaround = 启用 OCR 临时解决方案
 pref-enable-ocr-workaround-description = 当您的扫描/图片版 PDF 文件已进行 OCR 处理，且为白底黑字时，可以尝试启用 OCR 版的临时解决方案。该方案将在译文下方添加白色矩形块，以覆盖原文内容。
-pref-authkey = 输入授权码
+pref-authkey = API 令牌（暂不可用）
 pref-customSystemPrompt = 自定义角色提示词
 pref-translate-model = 翻译模型
 pref-translate-mode = 翻译模式
@@ -34,7 +34,7 @@ pref-shortcut-reset =
 pref-shortcut-duplicate-error = 该快捷键已被另一个插件动作使用。插件快捷键不能重复。
 pref-shortcut-conflict-guidance = 自定义快捷键可能与 Zotero 或系统快捷键冲突。除 Zotero 条目列表原生使用的 Shift+字母 外，插件不会因此阻止保存。
 
-pref-imt-site = 在沉浸式翻译官网个人主页获取授权码
+pref-service-pending = PutongDoc API 尚未接入，令牌测试与翻译暂不可用。下方翻译设置为迁移占位，不代表已支持的能力。
 
 pref-translate-settings = 翻译
 

@@ -1,4 +1,4 @@
-import { config } from "../../package.json";
+import { config } from '../../package.json';
 
 export { initLocale, getString, getLocaleID };
 
@@ -7,9 +7,7 @@ export { initLocale, getString, getLocaleID };
  */
 function initLocale() {
   const l10n = new (
-    typeof Localization === "undefined"
-      ? ztoolkit.getGlobal("Localization")
-      : Localization
+    typeof Localization === 'undefined' ? ztoolkit.getGlobal('Localization') : Localization
   )([`${config.addonRef}-addon.ftl`], true);
   addon.data.locale = {
     current: l10n,
@@ -49,13 +47,13 @@ function getString(...inputs: any[]) {
   if (inputs.length === 1) {
     return _getString(inputs[0]);
   } else if (inputs.length === 2) {
-    if (typeof inputs[1] === "string") {
+    if (typeof inputs[1] === 'string') {
       return _getString(inputs[0], { branch: inputs[1] });
     } else {
       return _getString(inputs[0], inputs[1]);
     }
   } else {
-    throw new Error("Invalid arguments");
+    throw new Error('Invalid arguments');
   }
 }
 

@@ -1,231 +1,77 @@
-import { request } from "./request";
-import { HEALTHCHECK_URL_TEST, HEALTHCHECK_URL } from "../utils/const";
+import { request } from './request';
 
-export function checkAuthKey(params: { apiKey: string }): Promise<boolean> {
-  return request({
-    url: `/check-key`,
-    params,
-  });
-}
-
-export type UploadUrlResponse = {
+// Transitional contracts for the existing UI; no network calls are made.
+// Replace these contracts when implementing the PutongDoc /api/v1 adapter.
+type UploadUrlResponse = {
   result: {
     objectKey: string;
     preSignedURL: string;
-    imgUrl: string;
   };
-  id: number;
-  exception: string;
-  status: string;
-  isCanceled: boolean;
-  isCompleted: boolean;
-  isCompletedSuccessfully: boolean;
-  creationOptions: number;
-  asyncState: null;
-  isFaulted: boolean;
 };
-
-export function getPdfUploadUrl(): Promise<UploadUrlResponse> {
-  return request({
-    url: `/pdf-upload-url`,
-    retries: 3,
-  });
-}
-
-type UploadPdfRequest = {
-  uploadUrl: string;
-  file: File;
-};
-
-export function uploadPdf(data: UploadPdfRequest) {
-  return request({
-    url: data.uploadUrl,
-    method: "PUT",
-    body: data.file,
-    responseType: "arraybuffer",
-    retries: 3,
-    headers: {
-      "Content-Type": "application/pdf",
-    },
-  });
-}
-
-export function downloadPdf(url: string) {
-  return request({
-    url,
-    method: "GET",
-    retries: 3,
-    responseType: "arraybuffer",
-  });
-}
-
-// 国际站用户健康检查API
-export async function checkInternationalServerHealth(): Promise<{
-  success: boolean;
-  status?: number;
-}> {
-  const isDev = addon.data.env === "development";
-  const healthCheckUrl = isDev ? HEALTHCHECK_URL_TEST : HEALTHCHECK_URL;
-
-  try {
-    const response = await request({
-      url: healthCheckUrl,
-      method: "GET",
-      fullFillOnError: true,
-    });
-    ztoolkit.log(
-      "健康检查!!! International User Health Check Response:",
-      response,
-    );
-    if (response.status === 434 && response?.data?.ext1 !== true) {
-      return { success: true, status: response.status };
-    } else {
-      return { success: false, status: response.status };
-    }
-  } catch (error) {
-    ztoolkit.log("Health Check Error:", error);
-    return { success: false };
-  }
-}
 
 type CreateTranslateTaskRequest = {
   objectKey: string;
-  pdfOptions: {
-    conversion_formats: {
-      html: boolean;
-    };
-  };
+  pdfOptions: { conversion_formats: { html: boolean } };
   fileName: string;
-  // 目标语言
   targetLanguage: string;
-  // 翻译服务
   requestModel: string;
-  // 兼容模式
   enhance_compatibility: boolean;
-  // OCR 解决方案
   OCRWorkaround: boolean;
-  // 是否
   autoEnableOcrWorkAround: boolean;
-  // 自动提取术语
   autoExtractGlossary: boolean;
-  // 禁用富文本翻译
   disable_rich_text_translate: boolean;
-  // 字体
   primaryFontFamily: string;
-  // 双语对照显示方式
   dual_mode: string;
-  // 自定义系统提示词
   customSystemPrompt: string | null;
-  // 布局模型ID
   layout_model_id: string;
 };
 
-export function createTranslateTask(
-  data: CreateTranslateTaskRequest,
-): Promise<string> {
-  return request({
-    url: "/backend-babel-pdf",
-    method: "POST",
-    body: data,
-    retries: 3,
-  });
-}
-
-type GetTranslatePdfCountRequest = {
-  objectKey: string;
-};
-
-export function getTranslatePdfCount(
-  data: GetTranslatePdfCountRequest,
-): Promise<string> {
-  return request({
-    url: `/pdf-count`,
-    body: data,
-  });
-}
-
-type GetTranslateStatusRequest = {
-  pdfId: string;
-};
-
-type GetTranslateStatusResponse = {
+type TranslateStatusResponse = {
   overall_progress: number;
   currentStageName: string;
   status: string;
   message: string;
-  num_pages: number;
 };
 
-export function getTranslateStatus(
-  data: GetTranslateStatusRequest,
-): Promise<GetTranslateStatusResponse> {
-  return request({
-    url: `/pdf/${data.pdfId}/process`,
-    retries: 10,
-  });
-}
-
-type GetTranslatePdfResultRequest = {
-  pdfId: string;
-};
-
-type GetTranslatePdfResultResponse = {
+type TranslateResultResponse = {
   translationOnlyPdfOssUrl: string;
   translationDualPdfOssUrl: string;
-  waterMask: boolean;
-  monoFileUrl: string;
 };
 
-export function getTranslatePdfResult(
-  data: GetTranslatePdfResultRequest,
-): Promise<GetTranslatePdfResultResponse> {
-  return request({
-    url: `/pdf/${data.pdfId}/temp-url`,
-    retries: 3,
-  });
+export function checkAuthKey(_params: { apiKey: string }): Promise<boolean> {
+  return request();
 }
 
-type GetRecordListRequest = {
-  page?: number;
-  pageSize?: number;
-};
+export function getPdfUploadUrl(): Promise<UploadUrlResponse> {
+  return request();
+}
 
-type GetRecordListResponse = {
-  total: number;
-  list: {
-    createTime: string;
-    fileName: string;
-    pdfStatus: string;
-    recordId: string;
-    pageCount: number;
-    consumed: boolean;
-    backendStatus: string;
-    isWaterMark: boolean;
-    sourceLanguage?: string;
-    targetLanguage: string;
-    errMsg?: string;
-    detailStatus?: string;
-  }[];
-};
+export function uploadPdf(_data: { uploadUrl: string; file: File }): Promise<ArrayBuffer> {
+  return request();
+}
 
-export function getRecordList(
-  params: GetRecordListRequest,
-): Promise<GetRecordListResponse> {
-  return request({
-    url: `/pdf/record-list`,
-    params,
-  });
+export function downloadPdf(_url: string): Promise<ArrayBuffer> {
+  return request();
+}
+
+export function createTranslateTask(_data: CreateTranslateTaskRequest): Promise<string> {
+  return request();
+}
+
+export function getTranslateStatus(_data: { pdfId: string }): Promise<TranslateStatusResponse> {
+  return request();
+}
+
+export function getTranslatePdfResult(_data: { pdfId: string }): Promise<TranslateResultResponse> {
+  return request();
 }
 
 export default {
   checkAuthKey,
   getPdfUploadUrl,
   createTranslateTask,
-  getTranslatePdfCount,
   getTranslateStatus,
   getTranslatePdfResult,
-  getRecordList,
   uploadPdf,
   downloadPdf,
-  checkInternationalServerHealth,
 };

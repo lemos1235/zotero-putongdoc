@@ -1,40 +1,38 @@
-import { config } from "../../package.json";
-import { getString } from "../utils/locale";
-import { getPref, setPref } from "../utils/prefs";
-import { showDialog } from "../utils/dialog";
-import { getLanguages, getLanguageName } from "./language";
+import { config } from '../../package.json';
+import { getString } from '../utils/locale';
+import { getPref, setPref } from '../utils/prefs';
+import { showDialog } from '../utils/dialog';
+import { getLanguages, getLanguageName } from './language';
 import {
   translateModes,
   translateModels,
   dualModeOptions,
   fontFamilyOptions,
   ocrWorkaroundOptions,
-  translateModels_CN,
   layoutModelOptions,
-} from "../config";
-import type { Language } from "./language/types";
-import { checkIsCN } from "../utils/cn";
+} from '../config';
+import type { Language } from './language/types';
 import {
   DEFAULT_SHORTCUTS,
   formatShortcutForDisplay,
   getShortcutFromKeyboardEvent,
   isBareShiftLetterShortcut,
   normalizeShortcutString,
-} from "./shortcuts";
+} from './shortcuts';
 
 type ShortcutInputConfig = {
   inputId: string;
   resetId: string;
-  prefKey: "shortcutTranslate" | "shortcutTaskManager";
-  otherPrefKey: "shortcutTranslate" | "shortcutTaskManager";
+  prefKey: 'shortcutTranslate' | 'shortcutTaskManager';
+  otherPrefKey: 'shortcutTranslate' | 'shortcutTaskManager';
 };
 
 export function registerPrefs() {
   Zotero.PreferencePanes.register({
     pluginID: addon.data.config.addonID,
-    src: rootURI + "content/preferences.xhtml",
-    label: getString("prefs-title"),
-    image: `chrome://${addon.data.config.addonRef}/content/icons/favicon.png`,
+    src: rootURI + 'content/preferences.xhtml',
+    label: getString('prefs-title'),
+    image: `chrome://${addon.data.config.addonRef}/content/icons/icon.svg`,
   });
 }
 
@@ -59,22 +57,22 @@ function buildPrefsPane() {
   }
   ztoolkit.UI.replaceElement(
     {
-      tag: "menulist",
+      tag: 'menulist',
       id: `${config.addonRef}-target-language`,
       attributes: {
-        value: getPref("targetLanguage") as string,
-        native: "true",
+        value: getPref('targetLanguage') as string,
+        native: 'true',
       },
       styles: {
-        maxWidth: "250px",
+        maxWidth: '250px',
       },
       children: [
         {
-          tag: "menupopup",
+          tag: 'menupopup',
           children: getLanguages().map((lang) => {
             const nativeLang = getLanguageName(lang, Zotero.locale as Language);
             return {
-              tag: "menuitem",
+              tag: 'menuitem',
               attributes: {
                 label: nativeLang,
                 value: lang,
@@ -85,10 +83,10 @@ function buildPrefsPane() {
       ],
       listeners: [
         {
-          type: "command",
+          type: 'command',
           listener: (e: Event) => {
             ztoolkit.log(e);
-            setPref("targetLanguage", (e.target as XUL.MenuList).value);
+            setPref('targetLanguage', (e.target as XUL.MenuList).value);
           },
         },
       ],
@@ -98,21 +96,21 @@ function buildPrefsPane() {
 
   ztoolkit.UI.replaceElement(
     {
-      tag: "menulist",
+      tag: 'menulist',
       id: `${config.addonRef}-translate-mode`,
       attributes: {
-        value: getPref("translateMode") as string,
-        native: "true",
+        value: getPref('translateMode') as string,
+        native: 'true',
       },
       styles: {
-        maxWidth: "250px",
+        maxWidth: '250px',
       },
       children: [
         {
-          tag: "menupopup",
+          tag: 'menupopup',
           children: translateModes.map((item) => {
             return {
-              tag: "menuitem",
+              tag: 'menuitem',
               attributes: {
                 label: getString(item.label),
                 value: item.value,
@@ -123,10 +121,10 @@ function buildPrefsPane() {
       ],
       listeners: [
         {
-          type: "command",
+          type: 'command',
           listener: (e: Event) => {
             ztoolkit.log(e);
-            setPref("translateMode", (e.target as XUL.MenuList).value);
+            setPref('translateMode', (e.target as XUL.MenuList).value);
           },
         },
       ],
@@ -134,26 +132,25 @@ function buildPrefsPane() {
     doc.querySelector(`#${config.addonRef}-translate-mode-placeholder`)!,
   );
 
-  const isCN = checkIsCN();
-  const real_translateModels = isCN ? translateModels_CN : translateModels;
+  const real_translateModels = translateModels;
 
   ztoolkit.UI.replaceElement(
     {
-      tag: "menulist",
+      tag: 'menulist',
       id: `${config.addonRef}-translate-model`,
       attributes: {
-        value: getPref("translateModel") as string,
-        native: "true",
+        value: getPref('translateModel') as string,
+        native: 'true',
       },
       styles: {
-        maxWidth: "250px",
+        maxWidth: '250px',
       },
       children: [
         {
-          tag: "menupopup",
+          tag: 'menupopup',
           children: real_translateModels.map((item) => {
             return {
-              tag: "menuitem",
+              tag: 'menuitem',
               attributes: {
                 label: getString(item.label),
                 value: item.value,
@@ -164,10 +161,10 @@ function buildPrefsPane() {
       ],
       listeners: [
         {
-          type: "command",
+          type: 'command',
           listener: (e: Event) => {
             ztoolkit.log(e);
-            setPref("translateModel", (e.target as XUL.MenuList).value);
+            setPref('translateModel', (e.target as XUL.MenuList).value);
           },
         },
       ],
@@ -177,21 +174,21 @@ function buildPrefsPane() {
 
   ztoolkit.UI.replaceElement(
     {
-      tag: "menulist",
+      tag: 'menulist',
       id: `${config.addonRef}-enable-ocr-workaround`,
       attributes: {
-        value: getPref("ocrWorkaround") as string,
-        native: "true",
+        value: getPref('ocrWorkaround') as string,
+        native: 'true',
       },
       styles: {
-        maxWidth: "250px",
+        maxWidth: '250px',
       },
       children: [
         {
-          tag: "menupopup",
+          tag: 'menupopup',
           children: ocrWorkaroundOptions.map((item) => {
             return {
-              tag: "menuitem",
+              tag: 'menuitem',
               attributes: {
                 label: getString(item.label),
                 value: item.value,
@@ -202,10 +199,10 @@ function buildPrefsPane() {
       ],
       listeners: [
         {
-          type: "command",
+          type: 'command',
           listener: (e: Event) => {
             ztoolkit.log(e);
-            setPref("ocrWorkaround", (e.target as XUL.MenuList).value);
+            setPref('ocrWorkaround', (e.target as XUL.MenuList).value);
           },
         },
       ],
@@ -215,21 +212,21 @@ function buildPrefsPane() {
 
   ztoolkit.UI.replaceElement(
     {
-      tag: "menulist",
+      tag: 'menulist',
       id: `${config.addonRef}-font-family`,
       attributes: {
-        value: getPref("primaryFontFamily") as string,
-        native: "true",
+        value: getPref('primaryFontFamily') as string,
+        native: 'true',
       },
       styles: {
-        maxWidth: "250px",
+        maxWidth: '250px',
       },
       children: [
         {
-          tag: "menupopup",
+          tag: 'menupopup',
           children: fontFamilyOptions.map((item) => {
             return {
-              tag: "menuitem",
+              tag: 'menuitem',
               attributes: {
                 label: getString(item.label),
                 value: item.value,
@@ -240,10 +237,10 @@ function buildPrefsPane() {
       ],
       listeners: [
         {
-          type: "command",
+          type: 'command',
           listener: (e: Event) => {
             ztoolkit.log(e);
-            setPref("primaryFontFamily", (e.target as XUL.MenuList).value);
+            setPref('primaryFontFamily', (e.target as XUL.MenuList).value);
           },
         },
       ],
@@ -253,21 +250,21 @@ function buildPrefsPane() {
 
   ztoolkit.UI.replaceElement(
     {
-      tag: "menulist",
+      tag: 'menulist',
       id: `${config.addonRef}-dual-mode`,
       attributes: {
-        value: getPref("dualMode") as string,
-        native: "true",
+        value: getPref('dualMode') as string,
+        native: 'true',
       },
       styles: {
-        maxWidth: "250px",
+        maxWidth: '250px',
       },
       children: [
         {
-          tag: "menupopup",
+          tag: 'menupopup',
           children: dualModeOptions.map((item) => {
             return {
-              tag: "menuitem",
+              tag: 'menuitem',
               attributes: {
                 label: getString(item.label),
                 value: item.value,
@@ -278,10 +275,10 @@ function buildPrefsPane() {
       ],
       listeners: [
         {
-          type: "command",
+          type: 'command',
           listener: (e: Event) => {
             ztoolkit.log(e);
-            setPref("dualMode", (e.target as XUL.MenuList).value);
+            setPref('dualMode', (e.target as XUL.MenuList).value);
           },
         },
       ],
@@ -291,21 +288,21 @@ function buildPrefsPane() {
 
   ztoolkit.UI.replaceElement(
     {
-      tag: "menulist",
+      tag: 'menulist',
       id: `${config.addonRef}-layout-model`,
       attributes: {
-        value: getPref("layoutModel") as string,
-        native: "true",
+        value: getPref('layoutModel') as string,
+        native: 'true',
       },
       styles: {
-        maxWidth: "250px",
+        maxWidth: '250px',
       },
       children: [
         {
-          tag: "menupopup",
+          tag: 'menupopup',
           children: layoutModelOptions.map((item) => {
             return {
-              tag: "menuitem",
+              tag: 'menuitem',
               attributes: {
                 label: getString(item.label),
                 value: item.value,
@@ -316,10 +313,10 @@ function buildPrefsPane() {
       ],
       listeners: [
         {
-          type: "command",
+          type: 'command',
           listener: (e: Event) => {
             ztoolkit.log(e);
-            setPref("layoutModel", (e.target as XUL.MenuList).value);
+            setPref('layoutModel', (e.target as XUL.MenuList).value);
           },
         },
       ],
@@ -332,40 +329,18 @@ function bindPrefEvents() {
   bindShortcutPrefEvents();
 
   addon.data
-    .prefs!.window.document?.querySelector(
-      `#zotero-prefpane-${config.addonRef}-authkey`,
-    )
-    ?.addEventListener("change", (e: Event) => {
+    .prefs!.window.document?.querySelector(`#zotero-prefpane-${config.addonRef}-authkey`)
+    ?.addEventListener('change', (e: Event) => {
       ztoolkit.log(e);
-      setPref("authkey", (e.target as HTMLInputElement).value);
+      setPref('authkey', (e.target as HTMLInputElement).value);
     });
 
   addon.data
-    .prefs!.window.document?.querySelector(
-      `#zotero-prefpane-${config.addonRef}-test-button`,
-    )
-    ?.addEventListener("command", async (e: Event) => {
-      try {
-        const result = await addon.api.checkAuthKey({
-          apiKey: getPref("authkey"),
-        });
-        if (result) {
-          showDialog({
-            title: getString("pref-test-success"),
-          });
-        } else {
-          showDialog({
-            title: getString("pref-test-failed"),
-            message: getString("pref-test-failed-description"),
-          });
-        }
-      } catch (error) {
-        ztoolkit.log(error);
-        showDialog({
-          title: getString("pref-test-failed"),
-          message: getString("pref-test-failed-description"),
-        });
-      }
+    .prefs!.window.document?.querySelector(`#zotero-prefpane-${config.addonRef}-test-button`)
+    ?.addEventListener('command', async (e: Event) => {
+      showDialog({
+        title: getString('service-not-configured'),
+      });
     });
 }
 
@@ -375,34 +350,30 @@ function bindShortcutPrefEvents() {
     {
       inputId: `zotero-prefpane-${config.addonRef}-shortcut-translate`,
       resetId: `zotero-prefpane-${config.addonRef}-shortcut-translate-reset`,
-      prefKey: "shortcutTranslate",
-      otherPrefKey: "shortcutTaskManager",
+      prefKey: 'shortcutTranslate',
+      otherPrefKey: 'shortcutTaskManager',
     },
     {
       inputId: `zotero-prefpane-${config.addonRef}-shortcut-task-manager`,
       resetId: `zotero-prefpane-${config.addonRef}-shortcut-task-manager-reset`,
-      prefKey: "shortcutTaskManager",
-      otherPrefKey: "shortcutTranslate",
+      prefKey: 'shortcutTaskManager',
+      otherPrefKey: 'shortcutTranslate',
     },
   ];
 
   shortcutInputs.forEach((shortcutInput) => {
-    const input = doc.querySelector<HTMLInputElement>(
-      `#${shortcutInput.inputId}`,
-    );
+    const input = doc.querySelector<HTMLInputElement>(`#${shortcutInput.inputId}`);
     const resetButton = doc.querySelector(`#${shortcutInput.resetId}`);
     if (!input || !resetButton) {
       return;
     }
 
     input.value = formatShortcutForDisplay(getPref(shortcutInput.prefKey));
-    input.placeholder = formatShortcutForDisplay(
-      DEFAULT_SHORTCUTS[shortcutInput.prefKey],
-    );
+    input.placeholder = formatShortcutForDisplay(DEFAULT_SHORTCUTS[shortcutInput.prefKey]);
 
-    input.addEventListener("keydown", (event) => {
+    input.addEventListener('keydown', (event) => {
       const keyboardEvent = event as KeyboardEvent;
-      if (keyboardEvent.key === "Backspace" || keyboardEvent.key === "Delete") {
+      if (keyboardEvent.key === 'Backspace' || keyboardEvent.key === 'Delete') {
         return;
       }
       keyboardEvent.preventDefault();
@@ -412,16 +383,10 @@ function bindShortcutPrefEvents() {
         saveShortcutPref(shortcutInput, input);
       }
     });
-    input.addEventListener("change", () =>
-      saveShortcutPref(shortcutInput, input),
-    );
-    input.addEventListener("input", () =>
-      saveShortcutPref(shortcutInput, input),
-    );
-    resetButton.addEventListener("command", () => {
-      input.value = formatShortcutForDisplay(
-        DEFAULT_SHORTCUTS[shortcutInput.prefKey],
-      );
+    input.addEventListener('change', () => saveShortcutPref(shortcutInput, input));
+    input.addEventListener('input', () => saveShortcutPref(shortcutInput, input));
+    resetButton.addEventListener('command', () => {
+      input.value = formatShortcutForDisplay(DEFAULT_SHORTCUTS[shortcutInput.prefKey]);
       saveShortcutPref(shortcutInput, input);
     });
   });
@@ -431,27 +396,22 @@ function normalizeShortcutFromInputEvent(event: KeyboardEvent): string {
   return getShortcutFromKeyboardEvent(event);
 }
 
-function saveShortcutPref(
-  shortcutInput: ShortcutInputConfig,
-  input: HTMLInputElement,
-) {
+function saveShortcutPref(shortcutInput: ShortcutInputConfig, input: HTMLInputElement) {
   const normalizedValue = normalizeShortcutString(input.value);
-  const otherValue = normalizeShortcutString(
-    getPref(shortcutInput.otherPrefKey),
-  );
-  if (normalizedValue !== "" && normalizedValue === otherValue) {
+  const otherValue = normalizeShortcutString(getPref(shortcutInput.otherPrefKey));
+  if (normalizedValue !== '' && normalizedValue === otherValue) {
     input.value = formatShortcutForDisplay(getPref(shortcutInput.prefKey));
-    setShortcutFeedback(getString("pref-shortcut-duplicate-error"));
+    setShortcutFeedback(getString('pref-shortcut-duplicate-error'));
     return;
   }
   if (isBareShiftLetterShortcut(normalizedValue)) {
     input.value = formatShortcutForDisplay(getPref(shortcutInput.prefKey));
-    setShortcutFeedback(getString("pref-shortcut-native-conflict-error"));
+    setShortcutFeedback(getString('pref-shortcut-native-conflict-error'));
     return;
   }
   input.value = formatShortcutForDisplay(normalizedValue);
   setPref(shortcutInput.prefKey, normalizedValue);
-  setShortcutFeedback(getString("pref-shortcut-conflict-guidance"));
+  setShortcutFeedback(getString('pref-shortcut-conflict-guidance'));
 }
 
 function setShortcutFeedback(message: string) {

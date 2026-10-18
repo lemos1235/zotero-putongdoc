@@ -1,14 +1,8 @@
-import { Language } from "./modules/language/types";
+import { Language } from './modules/language/types';
 
-export type Status =
-  | "uploading"
-  | "queued"
-  | "translating"
-  | "success"
-  | "failed"
-  | "canceled";
+export type Status = 'uploading' | 'queued' | 'translating' | 'success' | 'failed' | 'canceled';
 
-export type Stage = "queued" | "processing" | "success" | "failed";
+export type Stage = 'queued' | 'processing' | 'success' | 'failed';
 
 export type TranslationTaskData = {
   parentItemId?: number;

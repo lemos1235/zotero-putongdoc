@@ -1,41 +1,41 @@
 {
-  "name": "zotero-immersivetranslate",
+  "name": "zotero-putongdoc",
   "type": "module",
-  "version": "0.0.24",
-  "description": "Zotero BabelDOC plugin, for Immersive Translate Pro members.",
+  "version": "0.1.0-alpha.0",
+  "description": "PutongDoc PDF translation plugin for Zotero (API integration pending).",
   "keywords": [
     "zotero",
-    "babeldoc",
+    "putongdoc",
     "plugin",
     "pdf-translation",
     "translation"
   ],
   "config": {
-    "addonName": "Immersive Translate 沉浸式翻译",
-    "addonID": "zotero@immersivetranslate.com",
-    "addonRef": "immersivetranslate",
-    "addonInstance": "ImmersiveTranslate",
-    "prefsPrefix": "extensions.zotero.immersivetranslate",
-    "xpiName": "immersive-translate"
+    "addonName": "PutongDoc",
+    "addonID": "zotero-putongdoc@lemos1235",
+    "addonRef": "putongdoc",
+    "addonInstance": "PutongDoc",
+    "prefsPrefix": "extensions.zotero.putongdoc",
+    "xpiName": "zotero-putongdoc"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/immersive-translate/zotero-immersivetranslate.git"
+    "url": "git+https://github.com/lemos1235/zotero-putongdoc.git"
   },
-  "author": "immersive-translate",
+  "author": "lemos1235",
   "bugs": {
-    "url": "https://github.com/immersive-translate/zotero-immersivetranslate/issues"
+    "url": "https://github.com/lemos1235/zotero-putongdoc/issues"
   },
-  "homepage": "https://github.com/immersive-translate/zotero-immersivetranslate#readme",
+  "homepage": "https://github.com/lemos1235/zotero-putongdoc#readme",
   "license": "AGPL-3.0-or-later",
   "scripts": {
     "start": "zotero-plugin serve",
     "build": "zotero-plugin build && tsc --noEmit",
     "build:dev": "zotero-plugin build --dev && tsc --noEmit",
+    "format": "prettier --write .",
     "lint:check": "prettier --check . && eslint .",
     "lint:fix": "prettier --write . && eslint . --fix",
     "release": "zotero-plugin release",
-    "test": "echo \"Error: no test specified\" && exit 1",
     "update-deps": "npm update --save"
   },
   "dependencies": {
@@ -53,21 +53,6 @@
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.28.0",
     "zotero-plugin-scaffold": "^0.4.1",
-    "zotero-types": "^4.1.0-beta.1"
-  },
-  "prettier": {
-    "printWidth": 80,
-    "tabWidth": 2,
-    "endOfLine": "lf",
-    "overrides": [
-      {
-        "files": [
-          "*.xhtml"
-        ],
-        "options": {
-          "htmlWhitespaceSensitivity": "css"
-        }
-      }
-    ]
+    "zotero-types": "4.1.0-beta.1"
   }
 }

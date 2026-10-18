@@ -1,15 +1,16 @@
 startup-begin = Addon is loading
 startup-finish = Addon is ready
-menuitem-translate = Translate with ImmersiveTranslate(Ctrl/Cmd+Shift+B)
-menuView-tasks = View Immersive translate tasks(Ctrl/Cmd+Shift+H)
+menuitem-translate = Translate with PutongDoc(Ctrl/Cmd+Shift+B)
+menuView-tasks = View PutongDoc tasks(Ctrl/Cmd+Shift+H)
 pref-test-success = Test successfully
 pref-test-failed = Test failed
-pref-test-failed-description = Please check your authkey
+pref-test-failed-description = Please check your API token
+service-not-configured = PutongDoc API integration is pending. Token testing and translation are unavailable.
 pref-shortcut-duplicate-error = This shortcut is already used by another plugin action. Plugin shortcuts must be unique.
 pref-shortcut-native-conflict-error = Shift+letter is reserved by Zotero item-list navigation and cannot be used as a plugin shortcut.
 pref-shortcut-conflict-guidance = Custom shortcuts may conflict with Zotero or system shortcuts. Conflicting values are allowed, but Zotero or the system may handle them first.
 
-prefs-title = Immersive Translate
+prefs-title = PutongDoc
 item-filed-status = Translation Status
 
 translateMode-all = Bilingual mode & Translation only
@@ -110,6 +111,6 @@ task-retry-tip = Only failed tasks can be retried
 
 # Network and download related strings
 network-slow-title = Slow Network Access
-network-slow-message = If you are in mainland China, you can contact customer service to migrate to Immersive Translate Speed Edition and generate an authorization code for a more stable Zotero plugin experience.
+network-slow-message = The download is slow. Please check your network connection and try again.
 network-slow-dont-remind = Don't remind again
 download-failed = Download failed

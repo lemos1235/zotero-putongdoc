@@ -1,21 +1,17 @@
-import { config } from "../package.json";
-import {
-  DialogHelper,
-  VirtualizedTableHelper,
-  LargePrefHelper,
-} from "zotero-plugin-toolkit";
-import {} from "zotero-plugin-toolkit";
-import hooks from "./hooks";
-import { createZToolkit } from "./utils/ztoolkit";
-import api from "./api";
-import type { TranslationTaskData } from "./types";
+import { config } from '../package.json';
+import { DialogHelper, VirtualizedTableHelper, LargePrefHelper } from 'zotero-plugin-toolkit';
+import {} from 'zotero-plugin-toolkit';
+import hooks from './hooks';
+import { createZToolkit } from './utils/ztoolkit';
+import api from './api';
+import type { TranslationTaskData } from './types';
 
 class Addon {
   public data: {
     alive: boolean;
     config: typeof config;
     // Env type, see build.js
-    env: "development" | "production";
+    env: 'development' | 'production';
     ztoolkit: ZToolkit;
     locale?: {
       current: any;

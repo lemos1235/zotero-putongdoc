@@ -1,110 +1,27 @@
-# Contributing to Zotero BabelDOC
+# 开发指南
 
-Thank you for your interest in contributing to the Zotero BabelDOC plugin! This document provides guidelines and instructions for contributing to this project.
+本项目为 PutongDoc 的 Zotero 插件，源码来源与许可证见 [README](./README.md)。
 
-## Development Setup
+## 环境
 
-### Prerequisites
+- Zotero 7 或更新版本，建议使用单独的开发配置文件。
+- Node.js 22.13 或更新的 Node.js 22 LTS 版本。
+- npm（随 Node.js 安装）。
 
-- Install a beta version of Zotero: https://www.zotero.org/support/beta_builds
-- [Node.js](https://nodejs.org/) (v14 or later recommended)
-- [Git](https://git-scm.com/)
+## 常用命令
 
-### Setting Up the Development Environment
+```sh
+npm ci
+npm run build
+npm run lint:check
+```
 
-1. Fork and clone the repository:
+需要在 Zotero 中调试时，复制 `.env.example` 为 `.env`，填写本机 Zotero 与开发配置文件路径，然后运行 `npm start`。
 
-   ```
-   git clone https://github.com/YOUR-USERNAME/zotero-immersivetranslate.git
-   cd zotero-immersivetranslate
-   ```
+## 当前范围
 
-2. Copy the environment variable file. Modify the commands that starts your installation of the beta Zotero.
+目前仅完成初步迁移。API 层默认拒绝所有请求，不读取或发送令牌。
+翻译设置仍是迁移占位，不能视为 PutongDoc 已支持的接口参数。
 
-   > Create a development profile (Optional)
-   > Start the beta Zotero with /path/to/zotero -p. Create a new profile and use it as your development profile. Do this only once.
-
-   ```
-    cp .env.example .env
-    vim .env
-   ```
-
-   You may need to adjust the Zotero installation path in `package.json` if your Zotero is not installed in the default location.
-
-3. Install dependencies with `pnpm install`.
-
-4. Start development with auto-reload:
-   ```
-   pnpm start
-   ```
-
-## Building and Testing
-
-- To build the plugin: `npm run build`
-
-## Submitting Contributions
-
-1. Create a new branch for your feature or bugfix:
-
-   ```
-   git checkout -b feature/your-feature-name
-   ```
-
-   or
-
-   ```
-   git checkout -b fix/issue-you-are-fixing
-   ```
-
-2. Make your changes, following the coding conventions below.
-
-3. Test your changes thoroughly.
-
-4. Commit your changes with clear, descriptive commit messages:
-
-   ```
-   git commit -m "feat: description of the feature"
-   ```
-
-5. Push your branch to your fork:
-
-   ```
-   git push origin feature/your-feature-name
-   ```
-
-6. Submit a pull request to the main repository.
-
-## Code Style and Conventions
-
-- Follow the existing code style and structure.
-- Use descriptive variable and function names.
-- Add comments for complex functionality.
-- Keep functions small and focused on a single responsibility.
-- Write clear commit messages describing what changes you made and why.
-
-## Internationalization (i18n)
-
-When adding or modifying user-facing text:
-
-1. Add strings to the appropriate `.ftl` files in the `addon/locale` directory.
-2. Make sure to add translations for all supported languages.
-3. Use the appropriate IDs and structures as shown in existing files.
-
-## Reporting Issues
-
-- Use the [GitHub Issues](https://github.com/immersive-translate/zotero-immersivetranslate/issues) page to report bugs or suggest features.
-- Before creating a new issue, please check if a similar issue already exists.
-- Provide detailed information about the issue, including:
-  - Steps to reproduce
-  - Expected behavior
-  - Actual behavior
-  - Screenshots if applicable
-  - Your environment (Zotero version, OS, etc.)
-  - If relevant, include the task ID when reporting translation issues
-
-## Communication
-
-- For general discussion and feedback, join the [BabelDOC community](https://immersivetranslate.com/zh-Hans/docs/communities/).
-- For specific technical questions, you can open an issue on GitHub.
-
-Thank you for contributing to make Zotero BabelDOC better!
+修改用户界面时，请同时更新 `addon/locale/zh-CN` 和 `addon/locale/en-US` 中的文案。
+问题反馈与贡献请前往 [本仓库](https://github.com/lemos1235/zotero-putongdoc)。

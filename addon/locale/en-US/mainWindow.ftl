@@ -1,5 +1,5 @@
-item-section-babeldoc-info = 
-    .label = BabelDOC Information
-item-section-babeldoc-info-tooltip =
-    .tooltiptext = BabelDOC Information
-item-info-status = BabelDOC Translation Status
+item-section-putongdoc-info =
+    .label = PutongDoc Information
+item-section-putongdoc-info-tooltip =
+    .tooltiptext = PutongDoc Information
+item-info-status = PutongDoc Translation Status
