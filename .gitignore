@@ -19,3 +19,7 @@ dist
 .pi
 *_*.md
 *.pdf
+*.sh
+
+# Packed plugin
+*.xpi
