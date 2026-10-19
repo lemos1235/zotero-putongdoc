@@ -1,0 +1,19 @@
+{
+  "addons": {
+    "zotero-putongdoc@lemos1235": {
+      "updates": [
+        {
+          "version": "0.2.0",
+          "update_link": "https://github.com/lemos1235/zotero-putongdoc/releases/download/v0.2.0/zotero-putongdoc.xpi",
+          "update_hash": "sha512:18e142a7c60856cc6d6065aae23e3b4a7ad6d44e99af8cee6be863291fff14477c8701af775ba157ecb9395876272a755e7a1bdd513dd3313c371b50fa27e4a1",
+          "applications": {
+            "zotero": {
+              "strict_min_version": "6.999",
+              "strict_max_version": "10.0.*"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
