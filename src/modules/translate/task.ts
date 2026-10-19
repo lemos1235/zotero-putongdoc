@@ -1,9 +1,10 @@
 import { saveTranslationData } from './persistence';
 import { showTaskManager, updateTaskInList } from './task-manager';
 import type { TranslationTaskData } from '../../types';
+import type { Quota } from '../../api';
 import { getPref } from '../../utils/prefs';
 import { showConfirmationDialog } from './confirm-dialog';
-import { translatePDF, getTranslationOptions } from './translate';
+import { translatePDF, getTranslationOptions, TaskCanceledError } from './translate';
 import { TranslationTaskMonitor } from './task-monitor';
 import { getString } from '../../utils/locale';
 import { showDialog } from '../../utils/dialog';
@@ -29,30 +30,100 @@ type ConfirmationArticleInfo = {
   metadata?: string;
 };
 
-async function validateTranslationAuth(): Promise<boolean> {
+async function fetchQuota(): Promise<Quota | null> {
   try {
-    await addon.api.getQuota();
-    return true;
+    return await addon.api.getQuota();
   } catch (error) {
     showDialog({ title: getString('pref-test-failed'), message: (error as Error).message });
-    return false;
+    return null;
   }
 }
 
 export async function addTasksToQueue() {
-  if (!(await validateTranslationAuth())) {
+  const quota = await fetchQuota();
+  if (!quota) {
     return;
   }
 
   try {
-    await addTasksToQueueFromTasks(await getTranslationTasks());
+    const tasks = await getTranslationTasks();
+    if (tasks.length && !(await checkBatchLimits(tasks, quota))) {
+      return;
+    }
+    await addTasksToQueueFromTasks(tasks);
   } catch (error) {
     showDialog({ title: getString('pref-test-failed'), message: (error as Error).message });
   }
 }
 
-async function addTasksToQueueFromTasks(tasksToQueue: TranslationTaskData[]) {
-  if (tasksToQueue.length === 0) {
+/**
+ * Reject the whole batch up front, matching the web uploader: no local waiting for slots.
+ * The server still has the final say (429) since other clients share the same slots.
+ */
+export async function checkBatchLimits(
+  tasks: TranslationTaskData[],
+  quota: Quota,
+): Promise<boolean> {
+  const invalid: string[] = [];
+  for (const task of tasks) {
+    try {
+      const { size } = await IOUtils.stat(task.attachmentPath);
+      if (!size || size > quota.maxFileSize) invalid.push(task.attachmentFilename);
+    } catch {
+      // Gecko errors embed local paths; report only the filename.
+      invalid.push(task.attachmentFilename);
+    }
+  }
+  if (invalid.length) {
+    showDialog({ title: getString('api-file-size'), message: invalid.join('\n') });
+    return false;
+  }
+  return checkAccountLimits(tasks, quota);
+}
+
+/**
+ * Synchronous so that, run with a fresh quota and right before enqueueing (no await in
+ * between), concurrent local submissions see each other's queued tasks. Tasks created on
+ * the server while the quota request was in flight may still be missed; the server's
+ * 429 covers that.
+ */
+export function checkAccountLimits(tasks: TranslationTaskData[], quota: Quota): boolean {
+  // Locally queued tasks are not on the server yet but will each take a slot and a file.
+  const pending = addon.data.task.translationTaskList.filter(
+    (task) =>
+      !task.pdfId && !task.submissionPending && ['queued', 'uploading'].includes(task.status || ''),
+  ).length;
+
+  // Pages are only known after server parsing, so only an exhausted page quota is certain.
+  const files = Math.max(0, quota.dailyFileQuota - quota.dailyUsedFiles - pending);
+  if (tasks.length > files || quota.dailyUsedPages >= quota.dailyPageQuota) {
+    showDialog({
+      title: getString('api-quota-exhausted'),
+      message:
+        quota.dailyUsedPages >= quota.dailyPageQuota
+          ? undefined
+          : getString('task-daily-quota-exceeded', { args: { files, count: tasks.length } }),
+    });
+    return false;
+  }
+
+  if (!Number.isFinite(quota.activeTasks)) return true; // Older server: rely on its 429.
+  const active = quota.activeTasks + pending;
+  const remaining = Math.max(0, quota.concurrencyLimit - active);
+  if (tasks.length > remaining) {
+    showDialog({
+      title: getString('api-error-quota-concurrency'),
+      message: getString('task-concurrency-exceeded', {
+        args: { active, limit: quota.concurrencyLimit, remaining, count: tasks.length },
+      }),
+    });
+    return false;
+  }
+  return true;
+}
+
+async function addTasksToQueueFromTasks(selectedTasks: TranslationTaskData[]) {
+  if (selectedTasks.length === 0) {
     ztoolkit.log('No valid PDF attachments found to add to the queue.');
     showDialog({
       title: getString('task-no-pdf'),
@@ -61,8 +132,19 @@ async function addTasksToQueueFromTasks(tasksToQueue: TranslationTaskData[]) {
   }
   const translateMode = getPref('translateMode');
   const targetLanguage = getPref('targetLanguage') as Language;
-  const confirmResult = await showConfirmationDialog(getConfirmationArticleInfo(tasksToQueue));
+  const confirmResult = await showConfirmationDialog(getConfirmationArticleInfo(selectedTasks));
   if (confirmResult.action === 'cancel') {
+    return;
+  }
+  // The dialog may stay open for a while: refresh the quota and re-check right before enqueueing.
+  const quota = await fetchQuota();
+  if (!quota) {
+    return;
+  }
+  // No await from here to the push below, so another batch cannot slip in between.
+  // Drop attachments that another batch queued while the dialog was open.
+  const tasksToQueue = selectedTasks.filter((task) => !isAttachmentInTaskList(task.attachmentId));
+  if (tasksToQueue.length === 0 || !checkAccountLimits(tasksToQueue, quota)) {
     return;
   }
 
@@ -303,6 +385,10 @@ async function processNextItem() {
       );
     }
   } catch (error: unknown) {
+    if (error instanceof TaskCanceledError) {
+      ztoolkit.log(`Submission canceled: ${taskData.attachmentFilename}`);
+      return;
+    }
     const failure = getSubmissionFailure(taskData, error);
     ztoolkit.log('PutongDoc submission failed:', failure.debugInfo);
     updateTaskInList(taskData.attachmentId, failure);

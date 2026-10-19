@@ -11,7 +11,13 @@ function fixture(interfaceLanguage = 'zh-CN') {
     'utf8',
   );
   const updates = [];
-  const api = {};
+  const api = {
+    getQuota: async () => {
+      throw new Error('Quota is checked once per batch, not per task');
+    },
+  };
+  const dialogs = [];
+  const delays = [];
   const addon = {
     api,
     data: { alive: true, task: { translationTaskList: [], translationGlobalQueue: [] } },
@@ -26,6 +32,23 @@ function fixture(interfaceLanguage = 'zh-CN') {
   const flushed = [];
   let flushFailure = false;
   let statSize = 4;
+  let statError = null;
+  const zotero = {
+    locale: interfaceLanguage,
+    Promise: {
+      delay: async (ms) => {
+        delays.push(ms);
+      },
+    },
+    Items: { get: () => ({ isAttachment: () => true, getCollections: () => [] }) },
+    Attachments: {
+      importFromFile: async (options) => {
+        const item = { id: 100 + imports.length, setTags() {}, async saveTx() {} };
+        imports.push({ options, item });
+        return item;
+      },
+    },
+  };
   const load = loader(
     {
       addon,
@@ -37,20 +60,12 @@ function fixture(interfaceLanguage = 'zh-CN') {
           },
         },
       },
-      Zotero: {
-        locale: interfaceLanguage,
-        Promise: { delay: async () => {} },
-        Items: { get: () => ({ isAttachment: () => true, getCollections: () => [] }) },
-        Attachments: {
-          importFromFile: async (options) => {
-            const item = { id: 100 + imports.length, setTags() {}, async saveTx() {} };
-            imports.push({ options, item });
-            return item;
-          },
-        },
-      },
+      Zotero: zotero,
       IOUtils: {
-        stat: async () => ({ size: statSize }),
+        stat: async () => {
+          if (statError) throw statError;
+          return { size: statSize };
+        },
         read: async () => new Uint8Array([37, 80, 68, 70]),
         write: async () => {},
         remove: async () => {},
@@ -77,7 +92,10 @@ function fixture(interfaceLanguage = 'zh-CN') {
         },
       },
       'src/utils/prefs.ts': { getPref: (key) => preferences[key] },
+      'src/utils/dialog.ts': { showDialog: (dialog) => dialogs.push(dialog) },
+      'src/modules/translate/confirm-dialog.ts': {},
       'src/modules/translate/task-manager.ts': {
+        showTaskManager() {},
         updateTaskInList: (id, update) => {
           updates.push({ id, ...update });
           const task = addon.data.task.translationTaskList.find((task) => task.attachmentId === id);
@@ -100,6 +118,12 @@ function fixture(interfaceLanguage = 'zh-CN') {
   return {
     load,
     api,
+    dialogs,
+    delays,
+    zotero,
+    setStatError: (value) => {
+      statError = value;
+    },
     addon,
     updates,
     imports,
@@ -280,13 +304,6 @@ test('submission marker is persisted before POST, and success ID before polling'
     pages: '1-2',
     glossaryId: 'legacy-glossary',
   };
-  f.api.getQuota = async () => ({
-    maxFileSize: 100,
-    dailyFileQuota: 5,
-    dailyUsedFiles: 0,
-    dailyPageQuota: 10,
-    dailyUsedPages: 0,
-  });
   f.api.getPdfUploadUrl = async (data) => {
     assert.equal(data.size, 4);
     return { key: 'uploaded-key' };
@@ -317,13 +334,6 @@ test('unknown submission outcome retains marker; explicit business rejection cle
   for (const status of [0, 500, 429, 400]) {
     const f = fixture();
     const { ApiError } = f.load('src/api/request.ts');
-    f.api.getQuota = async () => ({
-      maxFileSize: 100,
-      dailyFileQuota: 5,
-      dailyUsedFiles: 0,
-      dailyPageQuota: 10,
-      dailyUsedPages: 0,
-    });
     f.api.getPdfUploadUrl = async () => ({ key: 'key' });
     f.api.uploadPdf = async () => {};
     let posts = 0;
@@ -337,24 +347,213 @@ test('unknown submission outcome retains marker; explicit business rejection cle
   }
 });
 
-test('unsupported language or oversized PDF is rejected before upload', async () => {
-  for (const oversized of [false, true]) {
+test('unsupported language is rejected before upload', async () => {
+  const f = fixture();
+  f.taskData.targetLanguage = 'zh-TW';
+  let uploads = 0;
+  f.api.getPdfUploadUrl = async () => {
+    uploads++;
+  };
+  await assert.rejects(f.load('src/modules/translate/translate.ts').translatePDF(f.taskData));
+  assert.equal(uploads, 0);
+});
+
+test('concurrency and daily-quota 429s fail the task without retrying', async () => {
+  for (const [stage, key] of [
+    ['upload-url', 'error_quota_concurrency_running'],
+    ['create', 'error_quota_concurrency_running'],
+    ['create', 'error_quota_pages'],
+  ]) {
     const f = fixture();
-    f.api.getQuota = async () => ({
-      maxFileSize: oversized ? 1 : 100,
-      dailyFileQuota: 5,
-      dailyUsedFiles: 0,
-      dailyPageQuota: 10,
-      dailyUsedPages: 0,
-    });
-    f.taskData.targetLanguage = 'zh-TW';
-    let uploads = 0;
-    f.api.getPdfUploadUrl = async () => {
-      uploads++;
+    const { ApiError } = f.load('src/api/request.ts');
+    let calls = 0;
+    const reject = async () => {
+      calls++;
+      throw new ApiError(429, key);
     };
+    f.api.getPdfUploadUrl = stage === 'upload-url' ? reject : async () => ({ key: 'key' });
+    f.api.uploadPdf = async () => {};
+    f.api.createTranslateTask = reject;
     await assert.rejects(f.load('src/modules/translate/translate.ts').translatePDF(f.taskData));
-    assert.equal(uploads, 0);
+    assert.equal(calls, 1);
+    assert.equal(f.taskData.submissionPending, stage === 'create' ? false : undefined);
+    const failure = f
+      .load('src/modules/translate/task-diagnostics.ts')
+      .getSubmissionFailure(f.taskData, new ApiError(429, key));
+    assert.equal(failure.status, 'failed');
   }
+});
+
+test('rate-limited writes are resent after backing off', async () => {
+  const f = fixture();
+  const { ApiError } = f.load('src/api/request.ts');
+  let uploads = 0;
+  let posts = 0;
+  f.api.getPdfUploadUrl = async () => {
+    if (++uploads === 1) throw new ApiError(429, 'error_rate_limited', 3600 * 1000);
+    return { key: 'key' };
+  };
+  f.api.uploadPdf = async () => {};
+  f.api.createTranslateTask = async () => {
+    if (++posts < 3) throw new ApiError(429, 'error_rate_limited');
+    return remote('queued');
+  };
+  f.load('src/modules/translate/task-monitor.ts').TranslationTaskMonitor.addTask = () => {};
+  await f.load('src/modules/translate/translate.ts').translatePDF(f.taskData);
+  assert.equal(uploads, 2);
+  assert.equal(posts, 3);
+  // A huge Retry-After must not stall the serial submission queue.
+  assert.ok(f.delays.every((ms) => ms <= 31000));
+  assert.equal(f.taskData.pdfId, 'task-id');
+});
+
+test('batch exceeding remaining slots or file size is rejected as a whole', async () => {
+  const daily = { dailyFileQuota: 10, dailyUsedFiles: 0, dailyPageQuota: 100, dailyUsedPages: 0 };
+  const quota = (activeTasks, extra = {}) => ({
+    maxFileSize: 100,
+    concurrencyLimit: 3,
+    activeTasks,
+    ...daily,
+    ...extra,
+  });
+  const batch = (count) =>
+    Array.from({ length: count }, (_, i) => ({
+      attachmentId: 10 + i,
+      attachmentFilename: `p${i}.pdf`,
+      attachmentPath: `/p${i}.pdf`,
+    }));
+  const f = fixture();
+  const { checkBatchLimits } = f.load('src/modules/translate/task.ts');
+  assert.equal(await checkBatchLimits(batch(2), quota(1)), true);
+  assert.equal(await checkBatchLimits(batch(3), quota(1)), false);
+  assert.equal(f.dialogs.at(-1).title, 'api-error-quota-concurrency');
+  // Tasks still waiting in the local queue will each take a slot.
+  f.addon.data.task.translationTaskList[0].status = 'queued';
+  assert.equal(await checkBatchLimits(batch(2), quota(1)), false);
+  // Submitted tasks are already included in the server's activeTasks.
+  f.addon.data.task.translationTaskList[0].pdfId = 'task-id';
+  assert.equal(await checkBatchLimits(batch(2), quota(1)), true);
+  // Older servers without activeTasks fall back to the server-side 429.
+  assert.equal(
+    await checkBatchLimits(batch(5), { maxFileSize: 100, concurrencyLimit: 3, ...daily }),
+    true,
+  );
+  const dialogs = f.dialogs.length;
+  f.setSize(101);
+  assert.equal(await checkBatchLimits(batch(1), quota(0)), false);
+  assert.equal(f.dialogs.length, dialogs + 1);
+  assert.equal(f.dialogs.at(-1).title, 'api-file-size');
+  // A missing file is reported by name, never with the raw Gecko message.
+  f.setSize(4);
+  f.setStatError(new Error('NotFoundError: /Users/secret/path.pdf'));
+  assert.equal(await checkBatchLimits(batch(1), quota(0)), false);
+  assert.equal(f.dialogs.at(-1).message, 'p0.pdf');
+});
+
+test('batch exceeding the daily file quota or with pages exhausted is rejected before upload', async () => {
+  const f = fixture();
+  const { checkAccountLimits } = f.load('src/modules/translate/task.ts');
+  const quota = (extra) => ({
+    maxFileSize: 100,
+    concurrencyLimit: 20,
+    activeTasks: 0,
+    dailyFileQuota: 5,
+    dailyUsedFiles: 3,
+    dailyPageQuota: 100,
+    dailyUsedPages: 0,
+    ...extra,
+  });
+  const batch = (count) => Array.from({ length: count }, (_, i) => ({ attachmentId: 10 + i }));
+  assert.equal(checkAccountLimits(batch(2), quota()), true);
+  assert.equal(checkAccountLimits(batch(3), quota()), false);
+  assert.equal(f.dialogs.at(-1).title, 'api-quota-exhausted');
+  // A locally queued task will also consume a file.
+  f.addon.data.task.translationTaskList[0].status = 'queued';
+  assert.equal(checkAccountLimits(batch(2), quota()), false);
+  f.addon.data.task.translationTaskList[0].status = 'success';
+  assert.equal(checkAccountLimits(batch(1), quota({ dailyUsedPages: 100 })), false);
+});
+
+test('after confirmation the quota is refreshed and concurrent batches are de-duplicated', async () => {
+  const f = fixture();
+  f.preferences.targetLanguage = 'zh-CN';
+  f.addon.data.task.translationTaskList.length = 0;
+  f.addon.data.task.isQueueProcessing = true; // Keep the submission loop out of this test.
+  const pdf = {
+    id: 7,
+    attachmentFilename: 'shared.pdf',
+    isRegularItem: () => false,
+    isPDFAttachment: () => true,
+    getTags: () => [],
+    fileExists: async () => true,
+    getFilePathAsync: async () => '/shared.pdf',
+  };
+  f.zotero.getActiveZoteroPane = () => ({ getSelectedItems: () => [pdf] });
+  const quotas = [];
+  f.api.getQuota = async () => ({
+    maxFileSize: 100,
+    concurrencyLimit: 3,
+    dailyFileQuota: 10,
+    dailyUsedFiles: 0,
+    dailyPageQuota: 100,
+    dailyUsedPages: 0,
+    activeTasks: quotas.shift() ?? 0,
+  });
+  const confirms = [];
+  f.load('src/modules/translate/confirm-dialog.ts').showConfirmationDialog = () =>
+    new Promise((resolve) => confirms.push(() => resolve({ action: 'confirm', data: {} })));
+  const { addTasksToQueue } = f.load('src/modules/translate/task.ts');
+
+  // Two batches select the same attachment while both dialogs are open.
+  const first = addTasksToQueue();
+  const second = addTasksToQueue();
+  while (confirms.length < 2) await new Promise((resolve) => globalThis.setTimeout(resolve));
+  confirms.forEach((confirm) => confirm());
+  await Promise.all([first, second]);
+  assert.equal(f.addon.data.task.translationGlobalQueue.length, 1);
+  assert.equal(f.addon.data.task.translationTaskList.length, 1);
+
+  // Slots taken elsewhere while the dialog was open are caught by the refreshed quota.
+  f.addon.data.task.translationGlobalQueue.length = 0;
+  f.addon.data.task.translationTaskList.length = 0;
+  quotas.push(0, 3);
+  const third = addTasksToQueue();
+  while (confirms.length < 3) await new Promise((resolve) => globalThis.setTimeout(resolve));
+  confirms[2]();
+  await third;
+  assert.equal(f.addon.data.task.translationTaskList.length, 0);
+  assert.equal(f.dialogs.at(-1).title, 'api-error-quota-concurrency');
+});
+
+test('canceling during a rate-limit backoff stops before creating the task', async () => {
+  for (const stage of ['upload-url', 'create']) {
+    const f = fixture();
+    const { ApiError } = f.load('src/api/request.ts');
+    const { translatePDF, TaskCanceledError } = f.load('src/modules/translate/translate.ts');
+    const cancel = () => {
+      f.addon.data.task.translationTaskList[0].status = 'canceled';
+      throw new ApiError(429, 'error_rate_limited');
+    };
+    let posts = 0;
+    f.api.getPdfUploadUrl = stage === 'upload-url' ? cancel : async () => ({ key: 'key' });
+    f.api.uploadPdf = async () => {};
+    f.api.createTranslateTask = async () => {
+      posts++;
+      cancel();
+    };
+    await assert.rejects(translatePDF(f.taskData), TaskCanceledError);
+    assert.equal(posts, stage === 'create' ? 1 : 0);
+    assert.ok(!f.taskData.submissionPending);
+  }
+  // Canceled while uploading: no POST at all.
+  const f = fixture();
+  const { translatePDF, TaskCanceledError } = f.load('src/modules/translate/translate.ts');
+  f.api.getPdfUploadUrl = async () => ({ key: 'key' });
+  f.api.uploadPdf = async () => {
+    f.addon.data.task.translationTaskList[0].status = 'canceled';
+  };
+  f.api.createTranslateTask = async () => assert.fail('must not POST after cancel');
+  await assert.rejects(translatePDF(f.taskData), TaskCanceledError);
 });
 
 test('restart does not enqueue ambiguous submissions, paused tasks, or server failures', () => {
@@ -385,13 +584,6 @@ test('restart does not enqueue ambiguous submissions, paused tasks, or server fa
 
 test('disk flush failure prevents the non-idempotent POST entirely', async () => {
   const f = fixture();
-  f.api.getQuota = async () => ({
-    maxFileSize: 100,
-    dailyFileQuota: 5,
-    dailyUsedFiles: 0,
-    dailyPageQuota: 10,
-    dailyUsedPages: 0,
-  });
   f.api.getPdfUploadUrl = async () => ({ key: 'key' });
   f.api.uploadPdf = async () => {};
   let posts = 0;
@@ -410,13 +602,6 @@ test('disk flush failure prevents the non-idempotent POST entirely', async () =>
 
 test('ID persistence failure retains the previously flushed submission intent', async () => {
   const f = fixture();
-  f.api.getQuota = async () => ({
-    maxFileSize: 100,
-    dailyFileQuota: 5,
-    dailyUsedFiles: 0,
-    dailyPageQuota: 10,
-    dailyUsedPages: 0,
-  });
   f.api.getPdfUploadUrl = async () => ({ key: 'key' });
   f.api.uploadPdf = async () => {};
   f.api.createTranslateTask = async () => {

@@ -21,7 +21,31 @@ type ErrorDetails = {
   exception?: string;
   result?: number;
   storageCode?: string;
+  params?: Record<string, number>;
 };
+
+/** Account-limit rejections get a localized message instead of the raw key. */
+function limitMessage(key: string, params: Record<string, number> = {}): string | undefined {
+  const has = (...names: string[]) => names.every((name) => name in params);
+  switch (key) {
+    case 'error_quota_concurrency_running':
+      return has('limit', 'running')
+        ? getString('api-error-quota-concurrency-running', { args: params })
+        : getString('api-error-quota-concurrency');
+    case 'error_quota_concurrency':
+      return getString('api-error-quota-concurrency');
+    case 'error_quota_files':
+      return has('remaining')
+        ? getString('api-error-quota-files', { args: params })
+        : getString('api-quota-exhausted');
+    case 'error_quota_pages':
+      return has('pages', 'remaining')
+        ? getString('api-error-quota-pages', { args: params })
+        : getString('api-quota-exhausted');
+    case 'error_rate_limited':
+      return getString('api-error-rate-limited');
+  }
+}
 
 /** Never include exception messages: Gecko may embed credentials or signed URLs. */
 function safeException(error: unknown): Pick<ErrorDetails, 'exception' | 'result'> {
@@ -52,8 +76,11 @@ export class ApiError extends Error {
     const operation = details.operation
       ? `${getString(`api-operation-${details.operation}`)}: `
       : '';
+    const friendly = status === 429 ? limitMessage(key, details.params) : undefined;
     super(
-      `${operation}${getString('api-request-failed')} (${status || details.failure || 'network'}${key ? `: ${key}` : ''}${details.storageCode ? `: ${details.storageCode}` : ''})`,
+      friendly
+        ? `${operation}${friendly}`
+        : `${operation}${getString('api-request-failed')} (${status || details.failure || 'network'}${key ? `: ${key}` : ''}${details.storageCode ? `: ${details.storageCode}` : ''})`,
     );
   }
 }
@@ -245,7 +272,7 @@ export async function request<T>(
 }
 
 export function unwrap<T>(response: HttpResponse, operation?: RequestOperation): T {
-  let json: { success?: boolean; data?: T; error?: { key?: string } } = {};
+  let json: { success?: boolean; data?: T; error?: { key?: string; params?: unknown } } = {};
   try {
     json = JSON.parse(String(response.body));
   } catch {
@@ -257,10 +284,24 @@ export function unwrap<T>(response: HttpResponse, operation?: RequestOperation):
       response.status,
       typeof key === 'string' && /^error_[a-z_]+$/.test(key) ? key : '',
       Math.max(0, Number(response.header('Retry-After')) || 0) * 1000,
-      { operation, failure: response.status === 200 ? 'invalid-response' : 'http' },
+      {
+        operation,
+        failure: response.status === 200 ? 'invalid-response' : 'http',
+        ...safeParams(json?.error?.params),
+      },
     );
   }
   return json.data;
+}
+
+/** Keep only numeric params (e.g. limit/running/remaining); they are safe to show and log. */
+function safeParams(params: unknown): Pick<ErrorDetails, 'params'> {
+  if (!params || typeof params !== 'object') return {};
+  const entries = Object.entries(params).filter(
+    ([name, value]) =>
+      /^[a-z]+$/i.test(name) && typeof value === 'number' && Number.isFinite(value),
+  );
+  return entries.length ? { params: Object.fromEntries(entries) } : {};
 }
 
 /** Retry only reads, and only transient network/server/rate-limit errors. */

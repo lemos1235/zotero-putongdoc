@@ -126,6 +126,28 @@ test('errors tolerate non-JSON, hide response details, and classify Retry-After'
   assert.equal(retryDelay(new ApiError(500, ''), 4), null);
 });
 
+test('account-limit 429s show localized messages with only numeric params', async () => {
+  const reply = (key, params) => ({
+    status: 429,
+    body: JSON.stringify({ success: false, error: { key, params } }),
+  });
+  const f = networkFixture([
+    reply('error_quota_concurrency_running', { limit: 3, running: 3, note: 'secret' }),
+    reply('error_quota_pages', { pages: 'x', remaining: 2 }),
+    reply('error_quota_files', { remaining: 0 }),
+  ]);
+  const { getPdfUploadUrl } = f.load('src/api/index.ts');
+  const upload = () => getPdfUploadUrl({ name: 'a.pdf', size: 1 });
+  await assert.rejects(upload(), (error) => {
+    assert.equal(error.message, 'api-operation-upload-url: api-error-quota-concurrency-running');
+    assert.deepEqual({ ...error.details.params }, { limit: 3, running: 3 });
+    return true;
+  });
+  // Missing/non-numeric params fall back to a message without placeholders.
+  await assert.rejects(upload(), /: api-quota-exhausted$/);
+  await assert.rejects(upload(), /: api-error-quota-files$/);
+});
+
 test('cancel uses DELETE and retry uses POST on the documented endpoints', async () => {
   const f = networkFixture([
     ok({ id: 'task-id', deleted: true }),

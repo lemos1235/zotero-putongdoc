@@ -28,7 +28,6 @@ export type TranslationTaskData = {
   debugInfo?: string;
   submissionPhase?:
     | 'validation'
-    | 'quota'
     | 'read-file'
     | 'upload-url'
     | 'upload'

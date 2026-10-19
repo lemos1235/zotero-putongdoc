@@ -27,7 +27,6 @@ export function getSubmissionFailure(
 ): Pick<TranslationTaskData, 'status' | 'error' | 'debugInfo'> {
   const phases = [
     'validation',
-    'quota',
     'read-file',
     'upload-url',
     'upload',

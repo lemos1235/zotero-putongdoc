@@ -11,7 +11,10 @@ import {
 
 export interface Quota {
   maxFileSize: number;
+  /** 同时进行中（含排队）的任务上限，网页端与所有 Token 共用。 */
   concurrencyLimit: number;
+  /** 查询时刻进行中的任务数（除 completed/failed 外的所有状态）。 */
+  activeTasks: number;
   dailyFileQuota: number;
   dailyUsedFiles: number;
   dailyPageQuota: number;
