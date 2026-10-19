@@ -279,7 +279,7 @@ test('settings use two compact sections, text links and tooltip-only advanced he
   assert.match(xhtml, /href="https:\/\/putongdoc\.com\/tokens"/);
   assert.match(xhtml, /data-l10n-id="pref-token-create"/);
   assert.doesNotMatch(xhtml, /pref-about-docs|#readme/);
-  assert.match(xhtml, /data-l10n-id="pref-about-feedback"/);
+  assert.match(xhtml, /data-l10n-id="pref-about-feedback"\s+hidden="true"/);
   const translationSection = xhtml.match(/<groupbox[^>]*>[\s\S]*?<\/groupbox>/g)[1];
   for (const id of ['target-language', 'translate-mode', 'extract-backend']) {
     assert.ok(translationSection.includes(`id="__addonRef__-${id}-placeholder"`));

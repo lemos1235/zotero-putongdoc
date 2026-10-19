@@ -35,7 +35,8 @@ export default defineConfig({
   name: pkg.config.addonName,
   id: pkg.config.addonID,
   namespace: pkg.config.addonRef,
-  updateURL: `https://github.com/{{owner}}/{{repo}}/releases/download/release/${
+  // Served from the repository; `npm run release` commits the generated manifests.
+  updateURL: `https://raw.githubusercontent.com/{{owner}}/{{repo}}/main/${
     pkg.version.includes('-') ? 'update-beta.json' : 'update.json'
   }`,
   xpiName: pkg.config.xpiName,
@@ -67,6 +68,20 @@ export default defineConfig({
         outfile: `dist/addon/content/scripts/${pkg.config.addonRef}.js`,
       },
     ],
+  },
+
+  // Published locally (no CI): bump, build and stage update*.json, commit, tag v{version},
+  // push, then upload the XPI. The manifests ship in the release commit, not a GitHub release.
+  release: {
+    bumpp: {
+      execute: 'npm run release:prepare',
+      // Include the staged update*.json; requires a clean working tree.
+      all: true,
+    },
+    github: {
+      enable: 'local',
+      updater: false,
+    },
   },
 
   // If you need to see a more detailed log, uncomment the following line:

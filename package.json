@@ -1,7 +1,7 @@
 {
   "name": "zotero-putongdoc",
   "type": "module",
-  "version": "0.2.0",
+  "version": "0.1.0",
   "description": "PutongDoc PDF translation plugin for Zotero.",
   "keywords": [
     "zotero",
@@ -38,6 +38,7 @@
     "lint:check": "prettier --check . && eslint .",
     "lint:fix": "prettier --write . && eslint . --fix",
     "release": "zotero-plugin release",
+    "release:prepare": "npm run build && cp dist/update.json dist/update-beta.json . && git add update.json update-beta.json",
     "update-deps": "npm update --save"
   },
   "dependencies": {
