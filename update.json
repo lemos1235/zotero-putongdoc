@@ -3,9 +3,9 @@
     "zotero-putongdoc@lemos1235": {
       "updates": [
         {
-          "version": "0.2.0",
-          "update_link": "https://github.com/lemos1235/zotero-putongdoc/releases/download/v0.2.0/zotero-putongdoc.xpi",
-          "update_hash": "sha512:18e142a7c60856cc6d6065aae23e3b4a7ad6d44e99af8cee6be863291fff14477c8701af775ba157ecb9395876272a755e7a1bdd513dd3313c371b50fa27e4a1",
+          "version": "0.2.1",
+          "update_link": "https://github.com/lemos1235/zotero-putongdoc/releases/download/v0.2.1/zotero-putongdoc.xpi",
+          "update_hash": "sha512:7f972b1ff7232d13c376b4de923d34650755fc34fa1e2e8c00d0376496ae99eba1763d5df85b232b68048e9ec707db96b9b7606a6b273252d62f5aa8984d81d4",
           "applications": {
             "zotero": {
               "strict_min_version": "6.999",

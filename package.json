@@ -1,7 +1,7 @@
 {
   "name": "zotero-putongdoc",
   "type": "module",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "文档文献翻译插件。大语言模型协同翻译，版式原样保留。",
   "keywords": [
     "zotero",
