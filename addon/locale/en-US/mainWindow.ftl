@@ -1,5 +1,5 @@
 item-section-putongdoc-info =
-    .label = PutongDoc Information
+    .label = PT Document Information
 item-section-putongdoc-info-tooltip =
-    .tooltiptext = PutongDoc Information
-item-info-status = PutongDoc Translation Status
+    .tooltiptext = PT Document Information
+item-info-status = PT Document Translation Status

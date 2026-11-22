@@ -56,7 +56,8 @@ function networkFixture(responses = []) {
     env: { get: () => envToken },
     logins: {
       initializationPromise: Promise.resolve(),
-      findLogins: () => logins,
+      findLogins: (_origin, _formActionOrigin, httpRealm) =>
+        logins.filter((login) => login.httpRealm === httpRealm),
       addLoginAsync: async (login) => {
         logins.push(login);
       },

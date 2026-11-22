@@ -1,12 +1,12 @@
 startup-begin = 插件加载中
 startup-finish = 插件已就绪
-menuitem-translate = 使用 PutongDoc 翻译
-menuView-tasks = 查看 PutongDoc 翻译任务
+menuitem-translate = 使用 PT 文档翻译
+menuView-tasks = 查看 PT 文档翻译任务
 pref-test-success = 测试成功
 pref-test-failed = 测试失败
 pref-test-failed-description = 请检查 API 令牌是否正确
 
-prefs-title = PutongDoc
+prefs-title = PT 文档翻译
 item-filed-status = 翻译状态
 
 translateMode-all = 双语模式 & 译文模式
@@ -120,7 +120,7 @@ api-token-required = 请在设置中填写 pt_ 开头的完整 API 令牌。
 api-token-saved = 令牌已配置
 api-token-placeholder-empty = pt_…
 api-token-placeholder-saved = 输入新令牌可替换
-api-request-failed = PutongDoc 请求失败
+api-request-failed = PT 文档翻译请求失败
 api-operation-quota = 检查额度
 api-operation-languages = 查询目标语言
 api-operation-upload-url = 申请上传链接

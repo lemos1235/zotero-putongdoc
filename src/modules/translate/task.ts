@@ -11,7 +11,9 @@ import { showDialog } from '../../utils/dialog';
 import { Language } from '../language/types';
 import { getSubmissionFailure } from './task-diagnostics';
 
-const ATTR_TAG = 'PutongDoc_translated';
+const ATTR_TAG = 'PT_Document_translated';
+// Recognize attachments created before the rename so they are still skipped.
+const LEGACY_ATTR_TAGS = ['PutongDoc_translated'];
 
 /**
  * Check if attachment is already in the translation task list
@@ -267,7 +269,9 @@ async function processItemForTranslation(item: Zotero.Item): Promise<Translation
 
 // 检查附件是否应该跳过
 export function shouldSkipAttachment(attachment: Zotero.Item): boolean {
-  const hasTranslatedTag = attachment.getTags().find((tagItem) => tagItem.tag === ATTR_TAG);
+  const hasTranslatedTag = attachment
+    .getTags()
+    .some((tagItem) => tagItem.tag === ATTR_TAG || LEGACY_ATTR_TAGS.includes(tagItem.tag));
   const hasNameSuffix =
     attachment.attachmentFilename?.endsWith('_dual.pdf') ||
     attachment.attachmentFilename?.endsWith('_translation.pdf');
@@ -290,7 +294,7 @@ async function createTranslationTask(
   const isInTaskList = isAttachmentInTaskList(attachmentId);
   // TODO 检查是否是已成功的翻译任务，给予提示
   // 1. 在 tasklist 中，并且状态是成功
-  // 2. 有同名称的带 PutongDoc tag 的翻译结果附件
+  // 2. 有同名称的带 PT 文档翻译 tag 的翻译结果附件
   if (isInTaskList) {
     ztoolkit.log(
       `Attachment ${attachmentId} (${attachmentFilename}) is already in the translation task list, skipping.`,
@@ -390,7 +394,7 @@ async function processNextItem() {
       return;
     }
     const failure = getSubmissionFailure(taskData, error);
-    ztoolkit.log('PutongDoc submission failed:', failure.debugInfo);
+    ztoolkit.log('PT 文档翻译提交失败:', failure.debugInfo);
     updateTaskInList(taskData.attachmentId, failure);
   } finally {
     Zotero.Promise.delay(0).then(processNextItem);

@@ -2,19 +2,22 @@
   "name": "zotero-putongdoc",
   "type": "module",
   "version": "0.2.0",
-  "description": "PutongDoc PDF translation plugin for Zotero.",
+  "description": "文档文献翻译插件。大语言模型协同翻译，版式原样保留。",
   "keywords": [
     "zotero",
     "putongdoc",
+    "pt document",
+    "PT 文档",
+    "PT 文档翻译",
     "plugin",
     "pdf-translation",
     "translation"
   ],
   "config": {
-    "addonName": "PutongDoc",
+    "addonName": "PT 文档翻译",
     "addonID": "zotero-putongdoc@lemos1235",
     "addonRef": "putongdoc",
-    "addonInstance": "PutongDoc",
+    "addonInstance": "PTDocument",
     "prefsPrefix": "extensions.zotero.putongdoc",
     "xpiName": "zotero-putongdoc"
   },

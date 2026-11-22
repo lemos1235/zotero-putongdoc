@@ -129,12 +129,14 @@ export async function showConfirmationDialog(articleInfo?: ConfirmationArticleIn
             tag: 'option',
             properties: {
               value: lang.value,
-              innerText: lang.label,
+              innerHTML: lang.label,
             },
           }),
         ),
         styles: {
           width: '200px',
+          minWidth: '200px',
+          flexShrink: '0',
           height: '30px',
           margin: '3px 0',
         },

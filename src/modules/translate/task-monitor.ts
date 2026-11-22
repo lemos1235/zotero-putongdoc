@@ -5,7 +5,7 @@ import { getPref } from '../../utils/prefs';
 import { updateTaskInList } from './task-manager';
 import { getString } from '../../utils/locale';
 
-const ATTR_TAG = 'PutongDoc_translated';
+const ATTR_TAG = 'PT_Document_translated';
 const MAX_WAIT = 30 * 60 * 1000;
 
 /**

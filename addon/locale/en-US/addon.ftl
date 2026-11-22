@@ -1,12 +1,12 @@
 startup-begin = Addon is loading
 startup-finish = Addon is ready
-menuitem-translate = Translate with PutongDoc
-menuView-tasks = View PutongDoc tasks
+menuitem-translate = Translate with PT Document
+menuView-tasks = View PT Document tasks
 pref-test-success = Test successfully
 pref-test-failed = Test failed
 pref-test-failed-description = Please check your API token
 
-prefs-title = PutongDoc
+prefs-title = PT Document
 item-filed-status = Translation Status
 
 translateMode-all = Bilingual mode & Translation only
@@ -119,7 +119,7 @@ api-token-required = Enter a complete API token starting with pt_ in settings.
 api-token-saved = Token configured
 api-token-placeholder-empty = pt_…
 api-token-placeholder-saved = Enter a new token to replace
-api-request-failed = PutongDoc request failed
+api-request-failed = PT Document request failed
 api-operation-quota = Check quota
 api-operation-languages = List target languages
 api-operation-upload-url = Request upload URL

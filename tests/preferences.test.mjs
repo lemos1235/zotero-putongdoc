@@ -162,6 +162,14 @@ test('fixed language list has exactly the supplied codes and localized names wit
     'fil',
     'hi',
     'ar',
+    'fa',
+    'ur',
+    'kk',
+    'mn',
+    'ug',
+    'tk',
+    'mr',
+    'yue',
     'en',
     'fr',
     'de',
@@ -169,7 +177,39 @@ test('fixed language list has exactly the supplied codes and localized names wit
     'it',
     'es',
     'pt',
+    'nl',
+    'pl',
+    'cs',
+    'sk',
+    'hu',
+    'ro',
+    'sv',
+    'da',
+    'nb',
+    'fi',
+    'is',
+    'ca',
+    'ga',
+    'sq',
+    'hr',
+    'sl',
+    'sr',
+    'et',
+    'lv',
+    'lt',
+    'tr',
+    'mt',
+    'el',
+    'uk',
+    'bg',
+    'mk',
+    'be',
+    'la',
     'sw',
+    'fr-CA',
+    'ht',
+    'pt-BR',
+    'es-419',
   ]);
   assert.equal(languages.getLanguageOptions('zh-CN')[0].label, '简体中文');
   assert.equal(languages.getLanguageOptions('en-US')[1].label, 'Traditional Chinese');
@@ -177,14 +217,14 @@ test('fixed language list has exactly the supplied codes and localized names wit
   assert.equal(networkFixture().load('src/api/index.ts').getLanguages, undefined);
 });
 
-test('without token, settings show 20 selectable languages and default to the first', async () => {
+test('without token, settings show 60 selectable languages and default to the first', async () => {
   const f = preferenceFixture();
   await f.open();
   const menu = f.elements.get('putongdoc-target-language');
   assert.equal(menu.attributes.value, 'zh-CN');
   assert.equal(menu.attributes.label, '简体中文');
   assert.equal(menu.attributes.disabled, undefined);
-  assert.equal(menu.children[0].children.length, 20);
+  assert.equal(menu.children[0].children.length, 60);
   assert.equal(f.requests(), 0);
   assert.equal(f.input.placeholder, 'api-token-placeholder-empty');
   assert.equal(f.elements.get('putongdoc-token-feedback').textContent, '');
@@ -214,7 +254,7 @@ test('save and test retains the configured placeholder; removal does not clear l
   await f.remove.emit('command');
   assert.equal(f.input.placeholder, 'api-token-placeholder-empty');
   assert.equal(f.elements.get('putongdoc-token-feedback').textContent, '');
-  assert.equal(f.elements.get('putongdoc-target-language').children[0].children.length, 20);
+  assert.equal(f.elements.get('putongdoc-target-language').children[0].children.length, 60);
 });
 
 test('existing language selection is preserved and changes persist', async () => {
@@ -279,7 +319,7 @@ test('settings use two compact sections, text links and tooltip-only advanced he
   assert.match(xhtml, /href="https:\/\/putongdoc\.com\/tokens"/);
   assert.match(xhtml, /data-l10n-id="pref-token-create"/);
   assert.doesNotMatch(xhtml, /pref-about-docs|#readme/);
-  assert.match(xhtml, /data-l10n-id="pref-about-feedback"\s+hidden="true"/);
+  assert.match(xhtml, /data-l10n-id="pref-about-feedback"/);
   const translationSection = xhtml.match(/<groupbox[^>]*>[\s\S]*?<\/groupbox>/g)[1];
   for (const id of ['target-language', 'translate-mode', 'extract-backend']) {
     assert.ok(translationSection.includes(`id="__addonRef__-${id}-placeholder"`));

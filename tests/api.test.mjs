@@ -208,3 +208,14 @@ test('legacy preference migrates to password manager and environment takes prece
   await creds.saveApiToken('');
   await assert.rejects(creds.getApiToken());
 });
+
+test('pre-rename password realm is migrated to the new realm', async () => {
+  const f = networkFixture();
+  f.setEnv('');
+  f.logins.push({ httpRealm: 'PutongDoc API Token', password: 'pt_old_realm' });
+  const creds = f.load('src/api/credentials.ts');
+  assert.equal(await creds.getApiToken(), 'pt_old_realm');
+  assert.equal(f.logins.length, 1);
+  assert.equal(f.logins[0].httpRealm, 'PT_Document_API_Token');
+  assert.equal(f.logins[0].password, 'pt_old_realm');
+});

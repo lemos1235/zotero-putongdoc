@@ -1,8 +1,8 @@
 export function registerPrompt() {
   ztoolkit.Prompt.register([
     {
-      name: 'PutongDoc Translate',
-      label: 'PutongDoc Translate',
+      name: 'PT 文档翻译',
+      label: 'PT 文档翻译',
       callback(prompt) {
         ztoolkit.getGlobal('alert')('Command triggered!');
       },

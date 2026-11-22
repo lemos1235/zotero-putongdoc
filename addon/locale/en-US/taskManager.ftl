@@ -1,4 +1,4 @@
-taskManager-title = PutongDoc Translation Tasks
+taskManager-title = PT Document Translation Tasks
 refresh = 
     .label = Refresh
     .tooltiptext = Refresh translation task list
